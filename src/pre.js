@@ -1,6 +1,15 @@
 (function () {
     Module.locateFile = function(file) {
-      return file;
+      var dir;
+
+      if (!dir) try {
+        if (document.currentScript) dir = document.currentScript.src;
+      } catch (e) { }
+
+      if (!dir && scriptDirectory) dir = scriptDirectory;
+      if (!dir) dir = location.href;
+
+      return dir.substr(0, dir.lastIndexOf('/') + 1) + file;
     };
 
     Module.mainScriptUrlOrBlob = Module.locateFile('stockfish.js');
