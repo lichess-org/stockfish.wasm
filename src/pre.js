@@ -5,11 +5,18 @@
 
     Module.mainScriptUrlOrBlob = Module.locateFile('stockfish.js');
 
+    Module.noExitRuntime = true;
+
+    var listeners = [];
+
     Module.print = function(line) {
-      console.log('>>', line);
+      if (listeners.length === 0) console.log(line);
+      for (var i = 0; i < listeners.length; i++) listeners[i](line);
     };
 
-    Module.noExitRuntime = true;
+    Module.addMessageListener = function(listener) {
+      listeners.push(listener);
+    };
 
     var queue = [];
 
