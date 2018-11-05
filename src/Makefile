@@ -138,6 +138,15 @@ ifeq ($(ARCH),ppc-64)
 	bits = 64
 endif
 
+ifeq ($(ARCH),wasm)
+	arch = wasm
+	bits = 64
+	prefetch = no
+	popcnt = yes
+	COMP = emscripten
+	EXE = stockfish.js
+endif
+
 
 ### ==========================================================================
 ### Section 3. Low-level configuration
@@ -224,6 +233,14 @@ ifeq ($(COMP),clang)
 		CXXFLAGS += -m$(bits)
 		LDFLAGS += -m$(bits)
 	endif
+endif
+
+ifeq ($(COMP),emscripten)
+	comp=clang
+	CXX=em++
+	EMFLAGS += -s USE_PTHREADS=1 -s PTHREAD_POOL_SIZE=4
+	CXXFLAGS += $(EMFLAGS)
+	LDFLAGS += $(EMFLAGS)
 endif
 
 ifeq ($(comp),icc)
