@@ -60,8 +60,7 @@ void TranspositionTable::resize(size_t mbSize) {
 
   clusterCount = mbSize * 1024 * 1024 / sizeof(Cluster);
 
-  free(mem);
-  mem = malloc(clusterCount * sizeof(Cluster) + CacheLineSize - 1);
+  mem = realloc(mem, clusterCount * sizeof(Cluster) + CacheLineSize - 1);
 
   if (!mem)
   {
@@ -80,28 +79,7 @@ void TranspositionTable::resize(size_t mbSize) {
 
 void TranspositionTable::clear() {
 
-  std::vector<std::thread> threads;
-
-  for (size_t idx = 0; idx < Options["Threads"]; idx++)
-  {
-      threads.push_back(std::thread([this, idx]() {
-
-          // Thread binding gives faster search on systems with a first-touch policy
-          if (Options["Threads"] > 8)
-              WinProcGroup::bindThisThread(idx);
-
-          // Each thread will zero its part of the hash table
-          const size_t stride = clusterCount / Options["Threads"],
-                       start  = stride * idx,
-                       len    = idx != Options["Threads"] - 1 ?
-                                stride : clusterCount - start;
-
-          std::memset(&table[start], 0, len * sizeof(Cluster));
-      }));
-  }
-
-  for (std::thread& th: threads)
-      th.join();
+  std::memset(mem, 0, clusterCount * sizeof(Cluster) + CacheLineSize - 1);
 }
 
 /// TranspositionTable::probe() looks up the current position in the transposition
