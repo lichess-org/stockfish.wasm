@@ -186,21 +186,19 @@ namespace {
 /// run 'bench', once the command is executed the function returns immediately.
 /// In addition to the UCI ones, also some additional debug commands are supported.
 
-void UCI::loop(int argc, char* argv[]) {
+extern "C" void uci_command(const char *c_cmd) {
+  std::string cmd(c_cmd);
 
-  Position pos;
-  string token, cmd;
-  StateListPtr states(new std::deque<StateInfo>(1));
-  auto uiThread = std::make_shared<Thread>(0);
+  static bool initialized = false;
+  static Position pos;
+  string token;
+  static StateListPtr states(new std::deque<StateInfo>(1));
+  static Thread uiThread(0);
 
-  pos.set(StartFEN, false, &states->back(), uiThread.get());
-
-  for (int i = 1; i < argc; ++i)
-      cmd += std::string(argv[i]) + " ";
-
-  do {
-      if (argc == 1 && !getline(cin, cmd)) // Block here waiting for input or EOF
-          cmd = "quit";
+  if (!initialized) {
+      pos.set(StartFEN, false, &states->back(), &uiThread);
+      initialized = true;
+  }
 
       istringstream is(cmd);
 
@@ -238,8 +236,6 @@ void UCI::loop(int argc, char* argv[]) {
       else if (token == "eval")  sync_cout << Eval::trace(pos) << sync_endl;
       else
           sync_cout << "Unknown command: " << cmd << sync_endl;
-
-  } while (token != "quit" && argc == 1); // Command line args are one-shot
 }
 
 

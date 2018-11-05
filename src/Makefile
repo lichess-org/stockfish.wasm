@@ -139,7 +139,7 @@ ifeq ($(ARCH),ppc-64)
 endif
 
 ifeq ($(ARCH),wasm)
-	arch = wasm
+	arch = any
 	bits = 64
 	prefetch = no
 	popcnt = yes
@@ -237,8 +237,8 @@ endif
 
 ifeq ($(COMP),emscripten)
 	comp=clang
-	CXX=em++
-	EMFLAGS += -s USE_PTHREADS=1 -s PTHREAD_POOL_SIZE=4
+	CXX=/usr/lib/emscripten/em++
+	EMFLAGS += -s USE_PTHREADS=1 -s PTHREAD_POOL_SIZE=4 -s TOTAL_MEMORY=67108864 -s EXPORTED_FUNCTIONS="['_main', '_uci_command']" -s "EXTRA_EXPORTED_RUNTIME_METHODS=['ccall']" --pre-js pre.js
 	CXXFLAGS += $(EMFLAGS)
 	LDFLAGS += $(EMFLAGS)
 endif
