@@ -43,17 +43,17 @@ Building
 Assuming [em++](https://github.com/kripken/emscripten) is available:
 
 ```
-./build.sh
+npm run-script prepare
 ```
 
 Usage
 -----
 
 Requires `stockfish.js`, `stockfish.wasm`, `stockfish.js.mem` and
-`pthread-main.js` to be served from the same directory.
+`pthread-main.js` (total size ~600K) to be served from the same directory.
 
 ```html
-<script src="dist/stockfish.js"></script>
+<script src="stockfish.js"></script>
 <script>
 Module.addMessageListener(function (line) {
   console.log(line);

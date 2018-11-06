@@ -1,6 +1,6 @@
 {
   "name": "stockfish.wasm",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "WebAssembly port of the strong chess engine Stockfish",
   "keywords": ["chess", "stockfish", "emscripten", "lichess", "webassembly"],
   "author": "Niklas Fiekas <niklas.fiekas@backscattering.de>",
@@ -11,12 +11,15 @@
     "url": "https://github.com/niklasf/stockfish.wasm/issues",
     "email": "niklas.fiekas@backscattering.de"
   },
-  "main": "dist/stockfish.js",
+  "main": "stockfish.js",
   "files": [
     "Copying.txt",
-    "dist/stockfish.js",
-    "dist/stockfish.js.mem",
-    "dist/stockfish.wasm",
-    "dist/pthread-main.js"
-  ]
+    "stockfish.js",
+    "stockfish.js.mem",
+    "stockfish.wasm",
+    "pthread-main.js"
+  ],
+  "scripts": {
+    "prepare": "cd src && make clean && make ARCH=wasm build && cd .. && cat preamble.js src/stockfish.js > stockfish.js && cp src/pthread-main.js . && cp src/stockfish.js.mem . && cp src/stockfish.wasm ."
+  }
 }
