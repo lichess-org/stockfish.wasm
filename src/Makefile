@@ -38,7 +38,7 @@ PGOBENCH = ./$(EXE) bench
 ### Object files
 OBJS = benchmark.o bitbase.o bitboard.o endgame.o evaluate.o main.o \
 	material.o misc.o movegen.o movepick.o pawns.o position.o psqt.o \
-	search.o thread.o timeman.o tt.o uci.o ucioption.o syzygy/tbprobe.o
+	search.o thread.o timeman.o tt.o uci.o ucioption.o
 
 ### Establish the operating system name
 KERNEL = $(shell uname -s)
@@ -138,6 +138,15 @@ ifeq ($(ARCH),ppc-64)
 	bits = 64
 endif
 
+ifeq ($(ARCH),wasm)
+	arch = any
+	bits = 64
+	prefetch = no
+	popcnt = yes
+	COMP = emscripten
+	EXE = stockfish.js
+endif
+
 
 ### ==========================================================================
 ### Section 3. Low-level configuration
@@ -224,6 +233,14 @@ ifeq ($(COMP),clang)
 		CXXFLAGS += -m$(bits)
 		LDFLAGS += -m$(bits)
 	endif
+endif
+
+ifeq ($(COMP),emscripten)
+	comp=clang
+	CXX=em++
+	EMFLAGS += -s USE_PTHREADS=1 -s PTHREAD_POOL_SIZE=9 -s TOTAL_MEMORY=134217728 -s EXPORTED_FUNCTIONS="['_main', '_uci_command']" -s "EXTRA_EXPORTED_RUNTIME_METHODS=['ccall']" --pre-js pre.js
+	CXXFLAGS += $(EMFLAGS)
+	LDFLAGS += $(EMFLAGS)
 endif
 
 ifeq ($(comp),icc)
@@ -477,12 +494,12 @@ clean: objclean profileclean
 
 # clean binaries and objects
 objclean:
-	@rm -f $(EXE) *.o ./syzygy/*.o
+	@rm -f $(EXE) *.o
 
 # clean auxiliary profiling files
 profileclean:
 	@rm -rf profdir
-	@rm -f bench.txt *.gcda ./syzygy/*.gcda *.gcno ./syzygy/*.gcno
+	@rm -f bench.txt *.gcda *.gcno
 	@rm -f stockfish.profdata *.profraw
 
 default:
@@ -528,7 +545,7 @@ config-sanity:
 	@test "$(pext)" = "yes" || test "$(pext)" = "no"
 	@test "$(comp)" = "gcc" || test "$(comp)" = "icc" || test "$(comp)" = "mingw" || test "$(comp)" = "clang"
 
-$(EXE): $(OBJS)
+$(EXE): $(OBJS) pre.js
 	$(CXX) -o $@ $(OBJS) $(LDFLAGS)
 
 clang-profile-make:

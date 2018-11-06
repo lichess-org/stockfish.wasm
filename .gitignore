@@ -1,3 +1,7 @@
 src/stockfish
 src/.depend
 *.o
+stockfish.js
+stockfish.js.mem
+stockfish.wasm
+pthread-main.js
