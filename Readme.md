@@ -5,6 +5,8 @@ WebAssembly port of the strong chess engine
 [Stockfish](https://github.com/official-stockfish/Stockfish). See it in action
 on https://lichess.org/analysis.
 
+[![npm version](https://badge.fury.io/js/stockfish.wasm.svg)](https://badge.fury.io/js/stockfish.wasm)
+
 Requirements
 ------------
 
@@ -41,8 +43,7 @@ Building
 Assuming [em++](https://github.com/kripken/emscripten) is available:
 
 ```
-cd src
-make ARCH=wasm build
+./build.sh
 ```
 
 Usage
@@ -52,7 +53,7 @@ Requires `stockfish.js`, `stockfish.wasm`, `stockfish.js.mem` and
 `pthread-main.js` to be served from the same directory.
 
 ```html
-<script src="stockfish.js"></script>
+<script src="dist/stockfish.js"></script>
 <script>
 Module.addMessageListener(function (line) {
   console.log(line);

@@ -13,6 +13,7 @@
   },
   "main": "dist/stockfish.js",
   "files": [
+    "Copying.txt",
     "dist/stockfish.js",
     "dist/stockfish.js.mem",
     "dist/stockfish.wasm",
