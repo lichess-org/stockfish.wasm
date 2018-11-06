@@ -237,7 +237,7 @@ endif
 
 ifeq ($(COMP),emscripten)
 	comp=clang
-	CXX=/usr/lib/emscripten/em++
+	CXX=em++
 	EMFLAGS += -s USE_PTHREADS=1 -s PTHREAD_POOL_SIZE=9 -s TOTAL_MEMORY=134217728 -s EXPORTED_FUNCTIONS="['_main', '_uci_command']" -s "EXTRA_EXPORTED_RUNTIME_METHODS=['ccall']" --pre-js pre.js
 	CXXFLAGS += $(EMFLAGS)
 	LDFLAGS += $(EMFLAGS)
