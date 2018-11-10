@@ -1534,7 +1534,7 @@ void MainThread::check_time() {
 string UCI::pv(const Position& pos, Depth depth, Value alpha, Value beta) {
 
   std::stringstream ss;
-  TimePoint elapsed = Time.elapsed() + 1;
+  long elapsed = std::max((long)Time.elapsed(), 1L); // Avoid divide by zero
   const RootMoves& rootMoves = pos.this_thread()->rootMoves;
   size_t pvIdx = pos.this_thread()->pvIdx;
   size_t multiPV = std::min((size_t)Options["MultiPV"], rootMoves.size());
