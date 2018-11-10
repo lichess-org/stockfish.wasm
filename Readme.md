@@ -22,10 +22,30 @@ portable but single-threaded version.
 Feature detection:
 
 ```javascript
-typeof WebAssembly === 'object' &&
-WebAssembly.validate(Uint8Array.of(0x0, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00)) &&
-typeof SharedArrayBuffer === 'function' &&
-new WebAssembly.Memory({shared: true, initial: 8, maximum: 8}).buffer instanceof SharedArrayBuffer
+function wasmThreadsSupported() {
+  // WebAssembly 1.0
+  var source = Uint8Array.of(0x0, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00);
+  if (typeof WebAssembly !== 'object' || !WebAssembly.validate(source)) return false;
+
+  // SharedArrayBuffer
+  if (typeof SharedArrayBuffer !== 'function') return false;
+
+  // Atomics
+  if (typeof Atomics !== 'object') return false;
+
+  // Shared memory
+  if (!(new WebAssembly.Memory({shared: true, initial: 8, maximum: 8}).buffer instanceof SharedArrayBuffer)) return false;
+
+  // Structured cloning
+  try {
+    // You have to make sure nobody cares about this message!
+    window.postMessage(new WebAssembly.Module(source), '*');
+  } catch (e) {
+    return false;
+  }
+
+  return true;
+}
 ```
 
 Limitations
