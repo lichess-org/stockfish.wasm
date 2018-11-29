@@ -5,4 +5,10 @@ Module.addMessageListener(function (line) {
 });
 
 Module.postMessage('uci');
+Module.postMessage('setoption name UCI_AnalyseMode value true');
+Module.postMessage('setoption name Analysis Contempt value Off');
+Module.postMessage('setoption name Threads value 1');
+Module.postMessage('setoption name MultiPV value 2');
+Module.postMessage('position fen rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 moves');
+Module.postMessage('go movetime 90000 depth 27');
 </script>

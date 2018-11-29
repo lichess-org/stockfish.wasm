@@ -122,7 +122,12 @@ void Thread::idle_loop() {
 
 void ThreadPool::set(size_t requested) {
 
-  if (size() > 0) { // destroy any existing thread(s)
+  assert(requested == 1);
+
+  if (!size())
+      push_back(new MainThread(0));
+
+  /* XXX if (size() > 0) { // destroy any existing thread(s)
       main()->wait_for_search_finished();
 
       while (size() > 0)
@@ -135,7 +140,7 @@ void ThreadPool::set(size_t requested) {
       while (size() < requested)
           push_back(new Thread(size()));
       clear();
-  }
+  } */
 
   // Reallocate the hash with the new threadpool size
   TT.resize(Options["Hash"]);
