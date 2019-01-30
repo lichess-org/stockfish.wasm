@@ -117,15 +117,19 @@ void Thread::idle_loop() {
 }
 
 /// ThreadPool::set() creates/destroys threads to match the requested number.
-/// Created and launched threads will go immediately to sleep in idle_loop.
+/// Created and launched threads will immediately go to sleep in idle_loop.
 /// Upon resizing, threads are recreated to allow for binding if necessary.
 
 void ThreadPool::set(size_t requested) {
 
   assert(requested == 1);
 
-  if (!size())
+  if (!size()) {
       push_back(new MainThread(0));
+
+      // Allocate the hashtable
+      TT.resize(Options["Hash"]);
+  }
 
   /* XXX if (size() > 0) { // destroy any existing thread(s)
       main()->wait_for_search_finished();
@@ -140,10 +144,10 @@ void ThreadPool::set(size_t requested) {
       while (size() < requested)
           push_back(new Thread(size()));
       clear();
-  } */
 
-  // Reallocate the hash with the new threadpool size
-  TT.resize(Options["Hash"]);
+      // Reallocate the hash with the new threadpool size
+      TT.resize(Options["Hash"]);
+  } */
 }
 
 /// ThreadPool::clear() sets threadPool data to initial values.
@@ -166,8 +170,8 @@ void ThreadPool::start_thinking(Position& pos, StateListPtr& states,
 
   main()->wait_for_search_finished();
 
-  stopOnPonderhit = stop = false;
-  ponder = ponderMode;
+  main()->stopOnPonderhit = stop = false;
+  main()->ponder = ponderMode;
   Search::Limits = limits;
   Search::RootMoves rootMoves;
 

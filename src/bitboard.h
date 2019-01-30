@@ -60,12 +60,11 @@ constexpr Bitboard Rank6BB = Rank1BB << (8 * 5);
 constexpr Bitboard Rank7BB = Rank1BB << (8 * 6);
 constexpr Bitboard Rank8BB = Rank1BB << (8 * 7);
 
-extern int SquareDistance[SQUARE_NB][SQUARE_NB];
+extern int8_t SquareDistance[SQUARE_NB][SQUARE_NB];
 
 extern Bitboard SquareBB[SQUARE_NB];
 extern Bitboard FileBB[FILE_NB];
 extern Bitboard RankBB[RANK_NB];
-extern Bitboard AdjacentFilesBB[FILE_NB];
 extern Bitboard ForwardRanksBB[COLOR_NB][RANK_NB];
 extern Bitboard BetweenBB[SQUARE_NB][SQUARE_NB];
 extern Bitboard LineBB[SQUARE_NB][SQUARE_NB];
@@ -135,6 +134,10 @@ constexpr bool more_than_one(Bitboard b) {
   return b & (b - 1);
 }
 
+inline bool opposite_colors(Square s1, Square s2) {
+  return bool(DarkSquares & s1) != bool(DarkSquares & s2);
+}
+
 /// rank_bb() and file_bb() return a bitboard representing all the squares on
 /// the given file or rank.
 
@@ -177,11 +180,21 @@ constexpr Bitboard pawn_attacks_bb(Bitboard b) {
 }
 
 
+/// double_pawn_attacks_bb() returns the pawn attacks for the given color
+/// from the squares in the given bitboard.
+
+template<Color C>
+constexpr Bitboard double_pawn_attacks_bb(Bitboard b) {
+  return C == WHITE ? shift<NORTH_WEST>(b) & shift<NORTH_EAST>(b)
+                    : shift<SOUTH_WEST>(b) & shift<SOUTH_EAST>(b);
+}
+
+
 /// adjacent_files_bb() returns a bitboard representing all the squares on the
 /// adjacent files of the given one.
 
 inline Bitboard adjacent_files_bb(File f) {
-  return AdjacentFilesBB[f];
+  return shift<EAST>(FileBB[f]) | shift<WEST>(FileBB[f]);
 }
 
 
