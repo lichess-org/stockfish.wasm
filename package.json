@@ -17,9 +17,9 @@
     "stockfish.js",
     "stockfish.js.mem",
     "stockfish.wasm",
-    "pthread-main.js"
+    "stockfish.worker.js"
   ],
   "scripts": {
-    "prepare": "cd src && make clean && make ARCH=wasm build && cd .. && cat preamble.js src/stockfish.js > stockfish.js && cp src/pthread-main.js . && cp src/stockfish.js.mem . && cp src/stockfish.wasm ."
+    "prepare": "cd src && make clean && make ARCH=wasm build && cd .. && cat preamble.js src/stockfish.js > stockfish.js && cp src/stockfish.worker.js . && cp src/stockfish.js.mem . && cp src/stockfish.wasm ."
   }
 }

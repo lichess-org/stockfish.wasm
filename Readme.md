@@ -70,7 +70,7 @@ Usage
 -----
 
 Requires `stockfish.js`, `stockfish.wasm`, `stockfish.js.mem` and
-`pthread-main.js` (total size ~600K) to be served from the same directory.
+`stockfish.worker.js` (total size ~600K) to be served from the same directory.
 
 ```html
 <script src="stockfish.js"></script>

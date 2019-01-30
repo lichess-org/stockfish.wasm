@@ -3,4 +3,4 @@ src/.depend
 stockfish.js
 stockfish.js.mem
 stockfish.wasm
-pthread-main.js
+stockfish.worker.js
