@@ -684,9 +684,7 @@ namespace {
     {
         if ((ss-1)->currentMove != MOVE_NULL)
         {
-            int p = (ss-1)->statScore;
-            int bonus = p > 0 ? (-p - 2500) / 512 :
-                        p < 0 ? (-p + 2500) / 512 : 0;
+            int bonus = -(ss-1)->statScore / 512;
 
             pureStaticEval = evaluate(pos);
             ss->staticEval = eval = pureStaticEval + bonus;
@@ -892,11 +890,13 @@ moves_loop: // When in check, search starts from here
           else if (cutNode && singularBeta > beta)
               return beta;
       }
-      else if (    givesCheck // Check extension (~2 Elo)
-               &&  pos.see_ge(move))
+
+      // Check extension (~2 Elo)
+      else if (    givesCheck
+               && (pos.blockers_for_king(~us) & from_sq(move) || pos.see_ge(move)))
           extension = ONE_PLY;
 
-      // Extension if castling
+      // Castling extension
       else if (type_of(move) == CASTLING)
           extension = ONE_PLY;
 
