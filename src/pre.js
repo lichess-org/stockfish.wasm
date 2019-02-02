@@ -14,8 +14,6 @@
 
     Module.mainScriptUrlOrBlob = Module.locateFile('stockfish.js');
 
-    Module.noExitRuntime = true;
-
     var listeners = [];
 
     Module.print = function(line) {

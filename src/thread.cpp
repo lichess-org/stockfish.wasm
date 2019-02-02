@@ -31,7 +31,6 @@ ThreadPool Threads; // Global object
 
 void *run_idle_loop(void *thread) {
   static_cast<Thread *>(thread)->idle_loop();
-  pthread_exit(nullptr);
   return nullptr;
 }
 
