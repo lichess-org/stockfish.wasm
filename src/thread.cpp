@@ -118,6 +118,8 @@ void Thread::wait_for_search_finished() {
 
 void Thread::idle_loop() {
 
+  threadStarted = true;
+
   // If OS already scheduled us on a different group than 0 then don't overwrite
   // the choice, eventually we are one of many one-threaded processes running on
   // some Windows NUMA hardware, for instance in fishtest. To make it simple,

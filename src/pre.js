@@ -1,4 +1,6 @@
 (function () {
+    // Work with relative paths
+
     Module.locateFile = function(file) {
       var dir;
 
@@ -14,6 +16,8 @@
 
     Module.mainScriptUrlOrBlob = Module.locateFile('stockfish.js');
 
+    // Message listeners
+
     var listeners = [];
 
     Module.print = function(line) {
@@ -25,7 +29,19 @@
       listeners.push(listener);
     };
 
-    var queue = [];
+    // Command queue
+
+    var queue = [], backoff = 1;
+
+    function poll() {
+      var command = queue.shift();
+      if (!command) return;
+
+      var tryLater = Module.ccall('uci_command', 'number', ['string'], [command]);
+      if (tryLater) queue.unshift(command);
+      backoff = tryLater ? (backoff * 2) : 1;
+      setTimeout(poll, backoff);
+    }
 
     Module.postMessage = function(command) {
       queue.push(command);
@@ -33,10 +49,10 @@
 
     Module.postRun = function() {
       Module.postMessage = function(command) {
-        Module.ccall('uci_command', 'number', ['string'], [command]);
+        queue.push(command);
+        if (queue.length == 1) poll();
       };
 
-      for (var i = 0; i < queue.length; i++) Module.postMessage(queue[i]);
-      queue = null;
+      poll();
     };
 })();

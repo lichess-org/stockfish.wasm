@@ -185,7 +185,7 @@ namespace {
 /// run 'bench', once the command is executed the function returns immediately.
 /// In addition to the UCI ones, also some additional debug commands are supported.
 
-extern "C" void uci_command(const char *c_cmd) {
+extern "C" int uci_command(const char *c_cmd) {
   std::string cmd(c_cmd);
 
   static bool initialized = false;
@@ -197,6 +197,11 @@ extern "C" void uci_command(const char *c_cmd) {
   if (!initialized) {
       pos.set(StartFEN, false, &states->back(), &uiThread);
       initialized = true;
+  }
+
+  for (Thread* th : Threads) {
+      if (!th->threadStarted)
+          return 1;
   }
 
       istringstream is(cmd);
@@ -233,6 +238,8 @@ extern "C" void uci_command(const char *c_cmd) {
       else if (token == "eval")  sync_cout << Eval::trace(pos) << sync_endl;
       else
           sync_cout << "Unknown command: " << cmd << sync_endl;
+
+  return 0;
 }
 
 
