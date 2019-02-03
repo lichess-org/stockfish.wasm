@@ -49,7 +49,16 @@ Thread::Thread(int n) : idx(n) {
   if (error)
       abort();
 
-  wait_for_search_finished();
+  // (A) Upstream does wait_for_search_finished() directly here.
+  //
+  // This deadlocks with emscripten: We are waiting for the newly created
+  // thread to set the condition variable before we yield to the browser. But
+  // we need to yield to the browser to create the worker for the newly created
+  // thread.
+  //
+  // https://bugzilla.mozilla.org/show_bug.cgi?id=1049079
+  //
+  // Instead we have moved the wait to start_thinking().
 }
 
 
@@ -176,7 +185,9 @@ void ThreadPool::clear() {
 void ThreadPool::start_thinking(Position& pos, StateListPtr& states,
                                 const Search::LimitsType& limits, bool ponderMode) {
 
-  main()->wait_for_search_finished();
+  // Upstream only has to wait for main(). See (A).
+  for (Thread* th : Threads)
+      th->wait_for_search_finished();
 
   main()->stopOnPonderhit = stop = false;
   main()->ponder = ponderMode;
