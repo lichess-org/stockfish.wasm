@@ -192,7 +192,7 @@ extern "C" int uci_command(const char *c_cmd) {
   static Position pos;
   string token;
   static StateListPtr states(new std::deque<StateInfo>(1));
-  static Thread uiThread(-1);
+  static Thread uiThread(0);
 
   if (!initialized) {
       pos.set(StartFEN, false, &states->back(), &uiThread);

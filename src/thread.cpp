@@ -37,10 +37,7 @@ void *run_idle_loop(void *thread) {
 /// Thread constructor launches the thread and waits until it goes to sleep
 /// in idle_loop(). Note that 'searching' and 'exit' should be alredy set.
 
-Thread::Thread(int n) : idx(n) {
-
-  if (n < 0)
-      return; // ui thread
+Thread::Thread(size_t n) : idx(n) {
 
   pthread_attr_t attr;
   pthread_attr_init(&attr);
@@ -68,9 +65,6 @@ Thread::Thread(int n) : idx(n) {
 Thread::~Thread() {
 
   assert(!searching);
-
-  if (idx < 0)
-      return; // ui thread
 
   exit = true;
   start_searching();

@@ -44,12 +44,12 @@ class Thread {
 
   Mutex mutex;
   ConditionVariable cv;
-  int idx;
+  size_t idx;
   bool exit = false, searching = true; // Set before starting std::thread
   pthread_t nativeThread;
 
 public:
-  explicit Thread(int);
+  explicit Thread(size_t);
   virtual ~Thread();
   virtual void search();
   void clear();
