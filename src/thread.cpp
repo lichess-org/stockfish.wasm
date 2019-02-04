@@ -151,7 +151,9 @@ void Thread::idle_loop() {
 void ThreadPool::set(size_t requested) {
 
   if (size() > 0) { // destroy any existing thread(s)
-      main()->wait_for_search_finished();
+      // Upstream only has to wait for main(). See (A).
+      for (auto th = Threads.rbegin(); th != Threads.rend(); ++th)
+          (*th)->wait_for_search_finished();
 
       while (size() > 0)
           delete back(), pop_back();
@@ -188,8 +190,8 @@ void ThreadPool::start_thinking(Position& pos, StateListPtr& states,
                                 const Search::LimitsType& limits, bool ponderMode) {
 
   // Upstream only has to wait for main(). See (A).
-  for (Thread* th : Threads)
-      th->wait_for_search_finished();
+  for (auto th = Threads.rbegin(); th != Threads.rend(); ++th)
+      (*th)->wait_for_search_finished();
 
   main()->stopOnPonderhit = stop = false;
   main()->ponder = ponderMode;
