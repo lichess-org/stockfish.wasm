@@ -150,9 +150,6 @@ void ThreadPool::set(size_t requested) {
       push_back(size() ? new Thread(size()) : new MainThread(0));
 
   clear();
-
-  // Reallocate the hash with the new threadpool size
-  TT.resize(Options["Hash"]);
 }
 
 /// ThreadPool::clear() sets threadPool data to initial values.

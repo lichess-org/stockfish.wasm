@@ -43,6 +43,7 @@ int main(int argc, char* argv[]) {
   Search::init();
   Pawns::init();
   Threads.set(Options["Threads"]);
+  TT.resize(Options["Hash"]); // After threads are up
   Search::clear(); // After threads are up
 
   return 0;
