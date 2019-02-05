@@ -29,6 +29,11 @@
       listeners.push(listener);
     };
 
+    Module.removeMessageListener = function(listener) {
+      var idx = listeners.indexOf(listener);
+      if (idx >= 0) listeners.splice(idx, 1);
+    };
+
     // Command queue
 
     var queue = [], backoff = 1;

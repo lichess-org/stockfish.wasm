@@ -1,8 +1,10 @@
 <script src="stockfish.js"></script>
 <script>
-Module.addMessageListener(function (line) {
-  console.log(line);
-});
+var listener = function (line) {
+  console.log('>', line);
+};
+Module.addMessageListener(listener);
+Module.removeMessageListener(listener);
 
 Module.postMessage('uci');
 Module.postMessage('setoption name UCI_AnalyseMode value true');
