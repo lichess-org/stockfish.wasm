@@ -114,14 +114,6 @@ void Thread::idle_loop() {
 
   threadStarted = true;
 
-  // If OS already scheduled us on a different group than 0 then don't overwrite
-  // the choice, eventually we are one of many one-threaded processes running on
-  // some Windows NUMA hardware, for instance in fishtest. To make it simple,
-  // just check if running threads are below a threshold, in this case all this
-  // NUMA machinery is not needed.
-  if (Options["Threads"] > 8)
-      WinProcGroup::bindThisThread(idx);
-
   while (true)
   {
       std::unique_lock<Mutex> lk(mutex);
@@ -144,25 +136,23 @@ void Thread::idle_loop() {
 
 void ThreadPool::set(size_t requested) {
 
-  if (size() > 0) { // destroy any existing thread(s)
-      // Upstream only has to wait for main(). See (A).
-      for (auto th = Threads.rbegin(); th != Threads.rend(); ++th)
-          (*th)->wait_for_search_finished();
+  if (size() == requested)
+      return;
 
-      while (size() > 0)
-          delete back(), pop_back();
-  }
+  // Upstream only has to wait for main(). See (A).
+  for (auto th = Threads.rbegin(); th != Threads.rend(); ++th)
+      (*th)->wait_for_search_finished();
 
-  if (requested > 0) { // create new thread(s)
-      push_back(new MainThread(0));
+  while (size() > requested)
+      delete back(), pop_back();
 
-      while (size() < requested)
-          push_back(new Thread(size()));
-      clear();
+  while (size() < requested)
+      push_back(size() ? new Thread(size()) : new MainThread(0));
 
-      // Reallocate the hash with the new threadpool size
-      TT.resize(Options["Hash"]);
-  }
+  clear();
+
+  // Reallocate the hash with the new threadpool size
+  TT.resize(Options["Hash"]);
 }
 
 /// ThreadPool::clear() sets threadPool data to initial values.
