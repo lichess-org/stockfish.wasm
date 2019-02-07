@@ -11,10 +11,8 @@ Module.postMessage('setoption name UCI_AnalyseMode value true');
 Module.postMessage('setoption name Analysis Contempt value Off');
 setTimeout(function() {
   Module.postMessage('setoption name Threads value 8');
-  Module.postMessage('setoption name MultiPV value 5');
-  Module.postMessage('position fen rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 moves');
-  Module.postMessage('go movetime 1000');
-  Module.postMessage('uci');
-  Module.postMessage('go movetime 1000');
+  //Module.postMessage('setoption name MultiPV value 5');
+  Module.postMessage('4r1k1/r1q2ppp/ppp2n2/4P3/5Rb1/1N1BQ3/PPP3PP/R5K1 w - - 1 17');
+  Module.postMessage('go depth 24');
 }, 3000);
 </script>
