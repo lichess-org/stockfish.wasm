@@ -60,7 +60,7 @@ Current limitations
 Building
 --------
 
-Assuming [em++](https://github.com/kripken/emscripten) is available:
+Assuming [em++](https://github.com/kripken/emscripten) (>= 1.38.27) is available:
 
 ```
 npm run-script prepare
