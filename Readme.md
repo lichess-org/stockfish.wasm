@@ -48,14 +48,14 @@ function wasmThreadsSupported() {
 }
 ```
 
-Limitations
------------
+Current limitations
+-------------------
 
-* Maximum number of threads determined at compile time (currently 8).
 * Maximum size of hashtable determined at compile time (currently 16 MB).
+* Maximum number of threads determined at compile time (currently 8). Blocked
+  on reserving more memory at runtime.
+* Only one instance per `window`.
 * No Syzygy tablebase support.
-* Exposed as a global variable in JavaScript (`window.Module`), only one
-  instance per site.
 
 Building
 --------
@@ -75,11 +75,13 @@ Requires `stockfish.js`, `stockfish.wasm`, `stockfish.js.mem` and
 ```html
 <script src="stockfish.js"></script>
 <script>
-Module.addMessageListener(function (line) {
-  console.log(line);
-});
+Stockfish().then(function(sf) {
+  sf.addMessageListener(function (line) {
+    console.log(line);
+  });
 
-Module.postMessage('uci');
+  sf.postMessage('uci');
+});
 </script>
 ```
 
