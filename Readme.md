@@ -75,13 +75,12 @@ Requires `stockfish.js`, `stockfish.wasm`, `stockfish.js.mem` and
 ```html
 <script src="stockfish.js"></script>
 <script>
-Stockfish().then(function(sf) {
-  sf.addMessageListener(function (line) {
-    console.log(line);
-  });
-
-  sf.postMessage('uci');
+var sf = Stockfish();
+sf.addMessageListener(function (line) {
+  console.log(line);
 });
+
+sf.postMessage('uci');
 </script>
 ```
 
