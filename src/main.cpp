@@ -26,6 +26,7 @@
 #include "thread.h"
 #include "tt.h"
 #include "uci.h"
+#include "endgame.h"
 
 namespace PSQT {
   void init();
@@ -41,7 +42,7 @@ int main(int argc, char* argv[]) {
   Position::init();
   Bitbases::init();
   Search::init();
-  Pawns::init();
+  Endgames::init();
   Threads.set(Options["Threads"]);
   TT.resize(Options["Hash"]); // After threads are up
   Search::clear(); // After threads are up

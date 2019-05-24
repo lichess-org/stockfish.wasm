@@ -59,12 +59,11 @@ public:
 
   Pawns::Table pawnsTable;
   Material::Table materialTable;
-  Endgames endgames;
   size_t pvIdx, pvLast;
   int selDepth, nmpMinPly;
   Color nmpColor;
-  std::atomic<uint64_t> nodes, tbHits;
   std::atomic_bool threadStarted;
+  std::atomic<uint64_t> nodes, bestMoveChanges;
 
   Position rootPos;
   Search::RootMoves rootMoves;
@@ -86,7 +85,7 @@ struct MainThread : public Thread {
   void search() override;
   void check_time();
 
-  double bestMoveChanges, previousTimeReduction;
+  double previousTimeReduction;
   Value previousScore;
   int callsCnt;
   bool stopOnPonderhit;
@@ -106,7 +105,6 @@ struct ThreadPool : public std::vector<Thread*> {
 
   MainThread* main()        const { return static_cast<MainThread*>(front()); }
   uint64_t nodes_searched() const { return accumulate(&Thread::nodes); }
-  uint64_t tb_hits()        const { return accumulate(&Thread::tbHits); }
 
   std::atomic_bool stop;
 

@@ -18,9 +18,9 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <algorithm> // For std::count
 #include <cassert>
 
+#include <algorithm> // For std::count
 #include "movegen.h"
 #include "search.h"
 #include "thread.h"
@@ -35,7 +35,7 @@ void *run_idle_loop(void *thread) {
 }
 
 /// Thread constructor launches the thread and waits until it goes to sleep
-/// in idle_loop(). Note that 'searching' and 'exit' should be alredy set.
+/// in idle_loop(). Note that 'searching' and 'exit' should be already set.
 
 Thread::Thread(size_t n) : idx(n) {
 
@@ -200,7 +200,7 @@ void ThreadPool::start_thinking(Position& pos, StateListPtr& states,
 
   for (Thread* th : *this)
   {
-      th->nodes = th->tbHits = th->nmpMinPly = 0;
+      th->nodes = th->nmpMinPly = 0;
       th->rootDepth = th->completedDepth = DEPTH_ZERO;
       th->rootMoves = rootMoves;
       th->rootPos.set(pos.fen(), pos.is_chess960(), &setupStates->back(), th);
