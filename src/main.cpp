@@ -41,8 +41,8 @@ int main(int argc, char* argv[]) {
   Bitboards::init();
   Position::init();
   Bitbases::init();
-  Search::init();
   Endgames::init();
+  Search::init();
   Threads.set(Options["Threads"]);
   TT.resize(Options["Hash"]); // After threads are up
   Search::clear(); // After threads are up
