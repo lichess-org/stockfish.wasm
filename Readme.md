@@ -54,7 +54,6 @@ Current limitations
 * Maximum size of hashtable determined at compile time (currently 16 MB).
 * Maximum number of threads determined at compile time (currently 8). Blocked
   on reserving more memory at runtime.
-* Only one instance per `window`.
 * No Syzygy tablebase support.
 
 Building
