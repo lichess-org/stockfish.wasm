@@ -59,7 +59,7 @@ Current limitations
 Building
 --------
 
-Assuming [em++](https://github.com/kripken/emscripten) (>= 1.38.27) is available:
+Assuming [em++](https://github.com/kripken/emscripten) (>= 1.38.36) is available:
 
 ```
 npm run-script prepare
@@ -69,7 +69,7 @@ Usage
 -----
 
 Requires `stockfish.js`, `stockfish.wasm`, `stockfish.js.mem` and
-`stockfish.worker.js` (total size ~600K) to be served from the same directory.
+`stockfish.worker.js` (total size ~550K) to be served from the same directory.
 
 ```html
 <script src="stockfish.js"></script>
