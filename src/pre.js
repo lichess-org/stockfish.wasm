@@ -5,7 +5,9 @@
 
   Module.print = function(line) {
     if (listeners.length === 0) console.log(line);
-    for (var i = 0; i < listeners.length; i++) listeners[i](line);
+    else setTimeout(function() {
+      for (var i = 0; i < listeners.length; i++) listeners[i](line);
+    }, 1);
   };
 
   Module.addMessageListener = function(listener) {
