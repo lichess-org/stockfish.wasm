@@ -12,9 +12,9 @@ Requirements
 
 Uses the latest WebAssembly threading proposal.
 
-* Available as an [Origin Trial in Chrome 70](https://developers.google.com/web/updates/2018/10/wasm-threads).
-* Behind a flag since Chrome 70: chrome://flags/#enable-webassembly-threads
-* Behind a flag in Firefox Nightly: `javascript.options.shared_memory` in [about:config](about:config).
+* Available as an [Origin Trial since Chrome 70](https://developers.google.com/web/updates/2018/10/wasm-threads).
+* Behind a flag since Chrome 70: `chrome://flags/#enable-webassembly-threads`
+* Behind a flag in Firefox 68: `javascript.options.shared_memory` in [about:config](about:config).
 
 See [stockfish.js](https://github.com/niklasf/stockfish.js) for a more
 portable but single-threaded version.
@@ -60,8 +60,10 @@ Current limitations
 -------------------
 
 * Maximum size of hashtable determined at compile time (currently 16 MB).
+  [(#3)](https://github.com/niklasf/stockfish.wasm/issues/3)
 * Maximum number of threads determined at compile time (currently 4). Blocked
   on reserving more memory at runtime.
+  [(#4)](https://github.com/niklasf/stockfish.wasm/issues/4)
 * No Syzygy tablebase support.
 
 Building
