@@ -123,17 +123,10 @@ namespace {
 
   // PassedRank[Rank] contains a bonus according to the rank of a passed pawn
   constexpr Score PassedRank[RANK_NB] = {
-    S(0, 0), S(5, 18), S(12, 23), S(10, 31), S(57, 62), S(163, 167), S(271, 250)
-  };
-
-  // PassedFile[File] contains a bonus according to the file of a passed pawn
-  constexpr Score PassedFile[FILE_NB] = {
-    S( -1,  7), S( 0,  9), S(-9, -8), S(-30,-14),
-    S(-30,-14), S(-9, -8), S( 0,  9), S( -1,  7)
+    S(0, 0), S(10, 28), S(17, 33), S(15, 41), S(62, 72), S(168, 177), S(276, 260)
   };
 
   // Assorted bonuses and penalties
-  constexpr Score AttacksOnSpaceArea = S(  4,  0);
   constexpr Score BishopPawns        = S(  3,  7);
   constexpr Score CorneredBishop     = S( 50, 50);
   constexpr Score FlankAttacks       = S(  8,  0);
@@ -143,6 +136,7 @@ namespace {
   constexpr Score LongDiagonalBishop = S( 45,  0);
   constexpr Score MinorBehindPawn    = S( 18,  3);
   constexpr Score Outpost            = S( 18,  6);
+  constexpr Score PassedFile         = S( 11,  8);
   constexpr Score PawnlessFlank      = S( 17, 95);
   constexpr Score RestrictedPiece    = S(  7,  7);
   constexpr Score RookOnPawn         = S( 10, 32);
@@ -605,7 +599,7 @@ namespace {
       return std::min(distance(pos.square<KING>(c), s), 5);
     };
 
-    Bitboard b, bb, squaresToQueen, defendedSquares, unsafeSquares;
+    Bitboard b, bb, squaresToQueen, unsafeSquares;
     Score score = SCORE_ZERO;
 
     b = pe->passed_pawns(Us);
@@ -617,12 +611,13 @@ namespace {
         assert(!(pos.pieces(Them, PAWN) & forward_file_bb(Us, s + Up)));
 
         int r = relative_rank(Us, s);
+        File f = file_of(s);
 
         Score bonus = PassedRank[r];
 
         if (r > RANK_3)
         {
-            int w = (r-2) * (r-2) + 2;
+            int w = 5 * r - 13;
             Square blockSq = s + Up;
 
             // Adjust bonus based on the king's proximity
@@ -636,16 +631,13 @@ namespace {
             // If the pawn is free to advance, then increase the bonus
             if (pos.empty(blockSq))
             {
-                defendedSquares = squaresToQueen = forward_file_bb(Us, s);
+                squaresToQueen = forward_file_bb(Us, s);
                 unsafeSquares = passed_pawn_span(Us, s);
 
                 bb = forward_file_bb(Them, s) & pos.pieces(ROOK, QUEEN);
 
-                if (!(pos.pieces(Us) & bb))
-                    defendedSquares &= attackedBy[Us][ALL_PIECES];
-
                 if (!(pos.pieces(Them) & bb))
-                    unsafeSquares &= attackedBy[Them][ALL_PIECES] | pos.pieces(Them);
+                    unsafeSquares &= attackedBy[Them][ALL_PIECES];
 
                 // If there are no enemy attacks on passed pawn span, assign a big bonus.
                 // Otherwise assign a smaller bonus if the path to queen is not attacked
@@ -656,7 +648,7 @@ namespace {
                                                              0 ;
 
                 // Assign a larger bonus if the block square is defended
-                if (defendedSquares & blockSq)
+                if ((pos.pieces(Us) & bb) || (attackedBy[Us][ALL_PIECES] & blockSq))
                     k += 5;
 
                 bonus += make_score(k * w, k * w);
@@ -666,10 +658,10 @@ namespace {
         // Scale down bonus for candidate passers which need more than one
         // pawn push to become passed, or have a pawn in front of them.
         if (   !pos.pawn_passed(Us, s + Up)
-            || (pos.pieces(PAWN) & forward_file_bb(Us, s)))
+            || (pos.pieces(PAWN) & (s + Up)))
             bonus = bonus / 2;
 
-        score += bonus + PassedFile[file_of(s)];
+        score += bonus - PassedFile * std::min(f, ~f);
     }
 
     if (T)
@@ -708,11 +700,9 @@ namespace {
     behind |= shift<Down>(behind);
     behind |= shift<Down+Down>(behind);
 
-    int bonus = popcount(safe) + popcount(behind & safe);
+    int bonus = popcount(safe) + popcount(behind & safe & ~attackedBy[Them][ALL_PIECES]);
     int weight = pos.count<ALL_PIECES>(Us) - 1;
     Score score = make_score(bonus * weight * weight / 16, 0);
-
-    score -= AttacksOnSpaceArea * popcount(attackedBy[Them][ALL_PIECES] & behind & safe);
 
     if (T)
         Trace::add(SPACE, Us, score);

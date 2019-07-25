@@ -259,7 +259,7 @@ void MainThread::search() {
   // Check if there are threads with a better score than main thread
   if (    Options["MultiPV"] == 1
       && !Limits.depth
-      && !Skill(Options["Skill Level"]).enabled()
+      && !(Skill(Options["Skill Level"]).enabled() || Options["UCI_LimitStrength"])
       &&  rootMoves[0].pv[0] != MOVE_NONE)
   {
       std::map<Move, int64_t> votes;
@@ -323,11 +323,18 @@ void Thread::search() {
   beta = VALUE_INFINITE;
 
   multiPV = Options["MultiPV"];
+
   // Pick integer skill levels, but non-deterministically round up or down
   // such that the average integer skill corresponds to the input floating point one.
+  // UCI_Elo is converted to a suitable fractional skill level, using anchoring
+  // to CCRL Elo (goldfish 1.13 = 2000) and a fit through Ordo derived Elo
+  // for match (TC 60+0.6) results spanning a wide range of k values.
   PRNG rng(now());
-  int intLevel = int(Options["Skill Level"]) +
-        ((Options["Skill Level"] - int(Options["Skill Level"])) * 1024 > rng.rand<unsigned>() % 1024  ? 1 : 0);
+  double floatLevel = Options["UCI_LimitStrength"] ?
+                        clamp(std::pow((Options["UCI_Elo"] - 1346.6) / 143.4, 1 / 0.806), 0.0, 20.0) :
+                        double(Options["Skill Level"]);
+  int intLevel = int(floatLevel) +
+                 ((floatLevel - int(floatLevel)) * 1024 > rng.rand<unsigned>() % 1024  ? 1 : 0);
   Skill skill(intLevel);
 
   // When playing with strength handicap enable MultiPV search that we will
@@ -489,7 +496,7 @@ void Thread::search() {
 
           // If the bestMove is stable over several iterations, reduce time accordingly
           timeReduction = lastBestMoveDepth + 10 * ONE_PLY < completedDepth ? 1.95 : 1.0;
-          double reduction = std::pow(mainThread->previousTimeReduction, 0.528) / timeReduction;
+          double reduction = (1.25 + mainThread->previousTimeReduction) / (2.25 * timeReduction);
 
           // Use part of the gained time from a previous stable move for the current move
           for (Thread* th : Threads)
@@ -971,7 +978,7 @@ moves_loop: // When in check, search starts from here
                   continue;
 
               // Prune moves with negative SEE (~10 Elo)
-              if (!pos.see_ge(move, Value(-29 * lmrDepth * lmrDepth)))
+              if (!pos.see_ge(move, Value(-(31 - std::min(lmrDepth, 18)) * lmrDepth * lmrDepth)))
                   continue;
           }
           else if (  (!givesCheck || !extension)
@@ -1044,6 +1051,13 @@ moves_loop: // When in check, search starts from here
                              + (*contHist[3])[movedPiece][to_sq(move)]
                              - 4000;
 
+              // Reset statScore to zero if negative and most stats shows >= 0
+              if (    ss->statScore < 0
+                  && (*contHist[0])[movedPiece][to_sq(move)] >= 0
+                  && (*contHist[1])[movedPiece][to_sq(move)] >= 0
+                  && thisThread->mainHistory[us][from_to(move)] >= 0)
+                  ss->statScore = 0;
+
               // Decrease/increase reduction by comparing opponent's stat score (~10 Elo)
               if (ss->statScore >= 0 && (ss-1)->statScore < 0)
                   r -= ONE_PLY;
@@ -1071,9 +1085,11 @@ moves_loop: // When in check, search starts from here
 
           if (doLMR && !captureOrPromotion)
           {
-              int bonus = stat_bonus(newDepth) / 2;
-              if (value <= alpha)
-                  bonus = -bonus;
+              int bonus = value > alpha ?  stat_bonus(newDepth)
+                                        : -stat_bonus(newDepth);
+
+              if (move == ss->killers[0])
+                  bonus += bonus / 4;
 
               update_continuation_histories(ss, movedPiece, to_sq(move), bonus);
           }
