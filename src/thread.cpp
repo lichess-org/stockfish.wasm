@@ -55,7 +55,8 @@ Thread::Thread(size_t n) : idx(n) {
   //
   // https://bugzilla.mozilla.org/show_bug.cgi?id=1049079
   //
-  // Instead we have moved the wait to start_thinking().
+  // Instead we introduced threadStarted (B) and retry uci_command with
+  // exponential backoff until all threads have started.
 }
 
 
@@ -112,12 +113,12 @@ void Thread::wait_for_search_finished() {
 
 void Thread::idle_loop() {
 
-  threadStarted = true;
-
   while (true)
   {
       std::unique_lock<Mutex> lk(mutex);
       searching = false;
+      threadStarted = true; // (B)
+
       cv.notify_one(); // Wake up anyone waiting for search finished
       cv.wait(lk, [&]{ return searching; });
 
@@ -133,23 +134,28 @@ void Thread::idle_loop() {
 /// ThreadPool::set() creates/destroys threads to match the requested number.
 /// Created and launched threads will immediately go to sleep in idle_loop.
 /// Upon resizing, threads are recreated to allow for binding if necessary.
+///
+/// stockfish.wasm: Unlike upstream, we reuse existing threads, because
+/// we do not care about thread binding. For the same reason, we also do not
+/// reallocate the transposition table.
 
 void ThreadPool::set(size_t requested) {
 
   if (size() == requested)
       return;
 
-  // Upstream only has to wait for main(). See (A).
-  for (auto th = Threads.rbegin(); th != Threads.rend(); ++th)
-      (*th)->wait_for_search_finished();
+  if (size() > 0) {
+      main()->wait_for_search_finished();
 
-  while (size() > requested)
-      delete back(), pop_back();
+      while (size() > requested)
+          delete back(), pop_back();
+  }
 
-  while (size() < requested)
-      push_back(size() ? new Thread(size()) : new MainThread(0));
-
-  clear();
+  if (requested > 0) {
+      while (size() < requested)
+          push_back(size() ? new Thread(size()) : new MainThread(0));
+      clear();
+  }
 }
 
 /// ThreadPool::clear() sets threadPool data to initial values.
@@ -170,9 +176,7 @@ void ThreadPool::clear() {
 void ThreadPool::start_thinking(Position& pos, StateListPtr& states,
                                 const Search::LimitsType& limits, bool ponderMode) {
 
-  // Upstream only has to wait for main(). See (A).
-  for (auto th = Threads.rbegin(); th != Threads.rend(); ++th)
-      (*th)->wait_for_search_finished();
+  main()->wait_for_search_finished();
 
   main()->stopOnPonderhit = stop = false;
   main()->ponder = ponderMode;
