@@ -240,7 +240,7 @@ endif
 ifeq ($(COMP),emscripten)
 	comp=clang
 	CXX=em++
-	EMFLAGS += -s MODULARIZE=1 -s EXPORT_NAME="Stockfish" -s NO_EXIT_RUNTIME=1 -s USE_PTHREADS=1 -s PTHREAD_POOL_SIZE=1 -s TOTAL_MEMORY=83886080 -s EXPORTED_FUNCTIONS="['_main', '_uci_command']" -s "EXTRA_EXPORTED_RUNTIME_METHODS=['ccall']" --pre-js pre.js
+	EMFLAGS += -s MODULARIZE=1 -s EXPORT_NAME="Stockfish" -s NO_EXIT_RUNTIME=1 -s USE_PTHREADS=1 -s PTHREAD_POOL_SIZE=1 -s TOTAL_MEMORY=83886080 -s EXPORTED_FUNCTIONS="['_main', '_uci_command']" -s "EXTRA_EXPORTED_RUNTIME_METHODS=['ccall']" -s "INCOMING_MODULE_JS_API=['print', 'postRun']" --pre-js pre.js
 	CXXFLAGS += $(EMFLAGS)
 	LDFLAGS += $(EMFLAGS)
 endif
