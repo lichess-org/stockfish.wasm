@@ -230,7 +230,8 @@ extern "C" int uci_command(const char *c_cmd) {
       else if (token == "ucinewgame") Search::clear();
       else if (token == "isready")    sync_cout << "readyok" << sync_endl;
 
-      // Additional custom non-UCI commands, mainly for debugging
+      // Additional custom non-UCI commands, mainly for debugging.
+      // Do not use these commands during a search!
       else if (token == "flip")  pos.flip();
       else if (token == "bench") bench(pos, is, states);
       else if (token == "d")     sync_cout << pos << sync_endl;

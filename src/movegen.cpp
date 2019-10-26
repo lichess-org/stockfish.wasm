@@ -60,6 +60,7 @@ namespace {
     constexpr Direction UpRight  = (Us == WHITE ? NORTH_EAST : SOUTH_WEST);
     constexpr Direction UpLeft   = (Us == WHITE ? NORTH_WEST : SOUTH_EAST);
 
+    const Square ksq = pos.square<KING>(Them);
     Bitboard emptySquares;
 
     Bitboard pawnsOn7    = pos.pieces(Us, PAWN) &  TRank7BB;
@@ -84,8 +85,6 @@ namespace {
 
         if (Type == QUIET_CHECKS)
         {
-            Square ksq = pos.square<KING>(Them);
-
             b1 &= pos.attacks_from<PAWN>(ksq, Them);
             b2 &= pos.attacks_from<PAWN>(ksq, Them);
 
@@ -129,8 +128,6 @@ namespace {
         Bitboard b1 = shift<UpRight>(pawnsOn7) & enemies;
         Bitboard b2 = shift<UpLeft >(pawnsOn7) & enemies;
         Bitboard b3 = shift<Up     >(pawnsOn7) & emptySquares;
-
-        Square ksq = pos.square<KING>(Them);
 
         while (b1)
             moveList = make_promotions<Type, UpRight>(moveList, pop_lsb(&b1), ksq);
@@ -187,7 +184,7 @@ namespace {
   ExtMove* generate_moves(const Position& pos, ExtMove* moveList, Color us,
                           Bitboard target) {
 
-    assert(Pt != KING && Pt != PAWN);
+    static_assert(Pt != KING && Pt != PAWN, "Unsupported piece type in generate_moves()");
 
     const Square* pl = pos.squares<Pt>(us);
 
@@ -219,8 +216,8 @@ namespace {
   template<Color Us, GenType Type>
   ExtMove* generate_all(const Position& pos, ExtMove* moveList, Bitboard target) {
 
-    constexpr CastlingRight OO  = Us | KING_SIDE;
-    constexpr CastlingRight OOO = Us | QUEEN_SIDE;
+    constexpr CastlingRights OO  = Us & KING_SIDE;
+    constexpr CastlingRights OOO = Us & QUEEN_SIDE;
     constexpr bool Checks = Type == QUIET_CHECKS; // Reduce template instantations
 
     moveList = generate_pawn_moves<Us, Type>(pos, moveList, target);
@@ -236,7 +233,7 @@ namespace {
         while (b)
             *moveList++ = make_move(ksq, pop_lsb(&b));
 
-        if (Type != CAPTURES && pos.can_castle(CastlingRight(OO | OOO)))
+        if (Type != CAPTURES && pos.can_castle(CastlingRights(OO | OOO)))
         {
             if (!pos.castling_impeded(OO) && pos.can_castle(OO))
                 *moveList++ = make<CASTLING>(ksq, pos.castling_rook_square(OO));
@@ -261,7 +258,7 @@ namespace {
 template<GenType Type>
 ExtMove* generate(const Position& pos, ExtMove* moveList) {
 
-  assert(Type == CAPTURES || Type == QUIETS || Type == NON_EVASIONS);
+  static_assert(Type == CAPTURES || Type == QUIETS || Type == NON_EVASIONS, "Unsupported type in generate()");
   assert(!pos.checkers());
 
   Color us = pos.side_to_move();
