@@ -12,6 +12,7 @@ Requirements
 
 Uses the latest WebAssembly threading proposal.
 
+* Enabled by default in Chrome 74 (desktop only).
 * Available as an [Origin Trial since Chrome 70](https://developers.google.com/web/updates/2018/10/wasm-threads).
 * Behind a flag since Chrome 70: `chrome://flags/#enable-webassembly-threads`
 * Behind a flag in Firefox 68: `javascript.options.shared_memory` in [about:config](about:config).
@@ -64,12 +65,15 @@ Current limitations
 * Maximum number of threads determined at compile time (currently 4). Blocked
   on reserving more memory at runtime.
   [(#4)](https://github.com/niklasf/stockfish.wasm/issues/4)
+* Can hang when UCI protocol is misused. (Do not send invalid commands or
+  positions. While the engine is searching, do not change options or start
+  additional searches).
 * No Syzygy tablebase support.
 
 Building
 --------
 
-Assuming [em++](https://github.com/kripken/emscripten) (>= 1.38.41) is available:
+Assuming [em++](https://github.com/kripken/emscripten) (>= 1.39.0) is available:
 
 ```
 npm run-script prepare
