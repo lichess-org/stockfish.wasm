@@ -28,12 +28,15 @@
 /// somewhat more than 1MB stack, so adjust it to TH_STACK_SIZE.
 /// The implementation calls pthread_create() with the stack size parameter
 /// equal to the linux 8MB default, on platforms that support it.
+///
+/// stockfish.wasm: Given that there is no Syzygy support, and assuming maximum
+/// search depth 99, we use 1MB instead.
 
-#if defined(__APPLE__) || defined(__MINGW32__) || defined(__MINGW64__)
+#if defined(__APPLE__) || defined(__MINGW32__) || defined(__MINGW64__) || defined(__EMSCRIPTEN__)
 
 #include <pthread.h>
 
-static const size_t TH_STACK_SIZE = 8 * 1024 * 1024;
+static const size_t TH_STACK_SIZE = 1 * 1024 * 1024;
 
 template <class T, class P = std::pair<T*, void(T::*)()>>
 void* start_routine(void* ptr)
@@ -54,7 +57,9 @@ public:
     pthread_attr_t attr_storage, *attr = &attr_storage;
     pthread_attr_init(attr);
     pthread_attr_setstacksize(attr, TH_STACK_SIZE);
-    pthread_create(&thread, attr, start_routine<T>, new P(obj, fun));
+    int error = pthread_create(&thread, attr, start_routine<T>, new P(obj, fun));
+    if (error)
+        abort();
   }
   void join() { pthread_join(thread, NULL); }
 };

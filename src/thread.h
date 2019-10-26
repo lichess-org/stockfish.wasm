@@ -46,7 +46,7 @@ class Thread {
   std::condition_variable cv;
   size_t idx;
   bool exit = false, searching = true; // Set before starting std::thread
-  pthread_t nativeThread;
+  NativeThread stdThread;
 
 public:
   explicit Thread(size_t);

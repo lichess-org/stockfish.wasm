@@ -29,22 +29,11 @@
 
 ThreadPool Threads; // Global object
 
-void *run_idle_loop(void *thread) {
-  static_cast<Thread *>(thread)->idle_loop();
-  return nullptr;
-}
 
 /// Thread constructor launches the thread and waits until it goes to sleep
 /// in idle_loop(). Note that 'searching' and 'exit' should be already set.
 
-Thread::Thread(size_t n) : idx(n) {
-
-  pthread_attr_t attr;
-  pthread_attr_init(&attr);
-  pthread_attr_setstacksize(&attr, 4096 * MAX_MOVES);
-  int error = pthread_create(&nativeThread, &attr, run_idle_loop, this);
-  if (error)
-      abort();
+Thread::Thread(size_t n) : idx(n), stdThread(&Thread::idle_loop, this) {
 
   // (A) Upstream does wait_for_search_finished() directly here.
   //
@@ -69,7 +58,7 @@ Thread::~Thread() {
 
   exit = true;
   start_searching();
-  pthread_join(nativeThread, nullptr);
+  stdThread.join();
 }
 
 /// Thread::bestMoveCount(Move move) return best move counter for the given root move
