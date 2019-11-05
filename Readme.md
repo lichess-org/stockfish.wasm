@@ -97,6 +97,9 @@ sf.postMessage('uci');
 </script>
 ```
 
+Optional: Callbacks assigned to `sf['onRuntimeInitialized']` and
+`sf['onAbort']` will be called for successful/failed initialization.
+
 License
 -------
 
