@@ -201,6 +201,11 @@ void Search::clear() {
 
 void MainThread::search() {
 
+  // (D) Initialize startTime on the same thread that will measure
+  // Time.elapsed(), because even steady clocks are not properly synchronized
+  // between WASM threads.
+  Search::Limits.startTime = now();
+
   if (Limits.perft)
   {
       nodes = perft<true>(rootPos, Limits.perft);
