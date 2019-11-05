@@ -409,7 +409,7 @@ void Thread::search() {
               beta  = std::min(previousScore + delta, VALUE_INFINITE);
 
               // Adjust contempt based on root move's previousScore (dynamic contempt)
-              int dct = ct + 86 * previousScore / (abs(previousScore) + 176);
+              int dct = ct + (111 - ct / 2) * previousScore / (abs(previousScore) + 176);
 
               contempt = (us == WHITE ?  make_score(dct, dct / 2)
                                       : -make_score(dct, dct / 2));
@@ -939,13 +939,6 @@ moves_loop: // When in check, search starts from here
       // Check extension (~2 Elo)
       else if (    givesCheck
                && (pos.is_discovery_check_on_king(~us, move) || pos.see_ge(move)))
-          extension = 1;
-
-      // Shuffle extension
-      else if (   PvNode
-               && pos.rule50_count() > 18
-               && depth < 3
-               && ++thisThread->shuffleExts < thisThread->nodes.load(std::memory_order_relaxed) / 4)  // To avoid too many extensions
           extension = 1;
 
       // Passed pawn extension
