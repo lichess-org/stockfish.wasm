@@ -82,8 +82,8 @@ npm run-script prepare
 Usage
 -----
 
-Requires `stockfish.js`, `stockfish.wasm`, `stockfish.js.mem` and
-`stockfish.worker.js` (total size ~600K) to be served from the same directory.
+Requires `stockfish.js`, `stockfish.wasm` and `stockfish.worker.js`
+(total size ~1.5M, ~200K gzipped) to be served from the same directory.
 
 ```html
 <script src="stockfish.js"></script>
