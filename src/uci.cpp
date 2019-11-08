@@ -22,6 +22,7 @@
 #include <iostream>
 #include <sstream>
 #include <string>
+#include <emscripten.h>
 
 #include "evaluate.h"
 #include "movegen.h"
@@ -185,7 +186,7 @@ namespace {
 /// run 'bench', once the command is executed the function returns immediately.
 /// In addition to the UCI ones, also some additional debug commands are supported.
 
-extern "C" int uci_command(const char *c_cmd) {
+EMSCRIPTEN_KEEPALIVE extern "C" int uci_command(const char *c_cmd) {
   std::string cmd(c_cmd);
 
   static bool initialized = false;
