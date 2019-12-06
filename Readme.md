@@ -12,15 +12,31 @@ Requirements
 
 Uses the latest WebAssembly threading proposal.
 
-* Enabled by default in Chrome 74 (desktop only).
-* Available as an [Origin Trial since Chrome 70](https://developers.google.com/web/updates/2018/10/wasm-threads).
-* Behind a flag since Chrome 70: `chrome://flags/#enable-webassembly-threads`
-* Behind a flag in Firefox 68: `javascript.options.shared_memory` in [about:config](about:config).
+### Chrome
+
+* Enabled by default since 74 (desktop only)
+* [Origin Trial from 70 to 75](https://developers.chrome.com/origintrials/#/view_trial/-5026017184145473535)
+* Flag `chrome://flags/#enable-webassembly-threads` since 70
+
+### Firefox
+
+* Since Firefox 71: Requires `javascript.options.shared_memory` and `dom.postMessage.sharedArrayBuffer.withCOOP_COEP` to be enabled in `about:flags` and these HTTP headers to be set on the top level response:
+
+  ```
+  Cross-Origin-Embedder-Policy: require-corp
+  Cross-Origin-Opener-Policy: same-origin
+  ```
+
+* Firefox 68 to 70: Requires `javascript.options.shared_memory` to be enabled in `about:flags`
+
+### Other browsers
+
+No support.
 
 See [stockfish.js](https://github.com/niklasf/stockfish.js) for a more
 portable but single-threaded version.
 
-Feature detection:
+### Feature detection
 
 ```javascript
 function wasmThreadsSupported() {
