@@ -55,11 +55,11 @@ function wasmThreadsSupported() {
   if (!(mem.buffer instanceof SharedArrayBuffer)) return false;
 
   // Growable shared memory
-  /* try {
+  try {
     mem.grow(8);
   } catch (e) {
     return false;
-  } */
+  }
 
   // Structured cloning
   try {
