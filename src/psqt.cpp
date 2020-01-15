@@ -2,7 +2,7 @@
   Stockfish, a UCI chess playing engine derived from Glaurung 2.1
   Copyright (C) 2004-2008 Tord Romstad (Glaurung author)
   Copyright (C) 2008-2015 Marco Costalba, Joona Kiiski, Tord Romstad
-  Copyright (C) 2015-2019 Marco Costalba, Joona Kiiski, Gary Linscott, Tord Romstad
+  Copyright (C) 2015-2020 Marco Costalba, Joona Kiiski, Gary Linscott, Tord Romstad
 
   Stockfish is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -59,14 +59,14 @@ constexpr Score Bonus[][RANK_NB][int(FILE_NB) / 2] = {
    { S(-48,-46), S(  1,-42), S(-14,-37), S(-23,-24) }
   },
   { // Rook
-   { S(-26, -7), S(-19,-15), S( -8,-10), S(-1,-10) },
-   { S(-21,-19), S(-24, -7), S( -6,  0), S( 5, -1) },
-   { S(-29, -1), S(-20, -4), S(  6,  8), S(12,-19) },
-   { S(-14, -1), S( -1, -3), S(-12, -8), S(-7, 10) },
-   { S(-37,  1), S( -6, 13), S(  0, 14), S(10,  4) },
-   { S(-16,  9), S( -1, 15), S(  4, -8), S( 1, 16) },
-   { S( -1,  2), S( 10,  4), S( 13, 23), S(23, -4) },
-   { S( -2, 21), S(-21, -3), S(  4, 26), S(-1, 20) }
+   { S(-31, -9), S(-20,-13), S(-14,-10), S(-5, -9) },
+   { S(-21,-12), S(-13, -9), S( -8, -1), S( 6, -2) },
+   { S(-25,  6), S(-11, -8), S( -1, -2), S( 3, -6) },
+   { S(-13, -6), S( -5,  1), S( -4, -9), S(-6,  7) },
+   { S(-27, -5), S(-15,  8), S( -4,  7), S( 3, -6) },
+   { S(-22,  6), S( -2,  1), S(  6, -7), S(12, 10) },
+   { S( -2,  4), S( 12,  5), S( 16, 20), S(18, -5) },
+   { S(-17, 18), S(-19,  0), S( -1, 19), S( 9, 13) }
   },
   { // Queen
    { S( 3,-69), S(-5,-57), S(-5,-47), S( 4,-26) },
@@ -79,8 +79,8 @@ constexpr Score Bonus[][RANK_NB][int(FILE_NB) / 2] = {
    { S(-2,-75), S(-2,-52), S( 1,-43), S(-2,-36) }
   },
   { // King
-   { S(271,  1), S(327, 45), S(270, 85), S(192, 76) },
-   { S(278, 53), S(303,100), S(230,133), S(174,135) },
+   { S(271,  1), S(327, 45), S(271, 85), S(198, 76) },
+   { S(278, 53), S(303,100), S(234,133), S(179,135) },
    { S(195, 88), S(258,130), S(169,169), S(120,175) },
    { S(164,103), S(190,156), S(138,172), S( 98,172) },
    { S(154, 96), S(179,166), S(105,199), S( 70,199) },
