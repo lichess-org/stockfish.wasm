@@ -44,8 +44,9 @@ portable but single-threaded version.
 ```javascript
 function wasmThreadsSupported() {
   // WebAssembly 1.0
-  var source = Uint8Array.of(0x0, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00);
-  if (typeof WebAssembly !== 'object' || !WebAssembly.validate(source)) return false;
+  const source = Uint8Array.of(0x0, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00);
+  if (typeof WebAssembly !== 'object' || typeof WebAssembly.validate !== 'function') return false;
+  if (!WebAssembly.validate(source)) return false;
 
   // SharedArrayBuffer
   if (typeof SharedArrayBuffer !== 'function') return false;
@@ -54,7 +55,7 @@ function wasmThreadsSupported() {
   if (typeof Atomics !== 'object') return false;
 
   // Shared memory
-  var mem = new WebAssembly.Memory({shared: true, initial: 8, maximum: 16});
+  const mem = new WebAssembly.Memory({shared: true, initial: 8, maximum: 16});
   if (!(mem.buffer instanceof SharedArrayBuffer)) return false;
 
   // Structured cloning
@@ -104,7 +105,7 @@ Requires `stockfish.js`, `stockfish.wasm` and `stockfish.worker.js`
 ```html
 <script src="stockfish.js"></script>
 <script>
-var sf = Stockfish();
+const sf = Stockfish();
 sf.addMessageListener(function (line) {
   console.log(line);
 });
