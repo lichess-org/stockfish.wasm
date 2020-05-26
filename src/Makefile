@@ -258,9 +258,11 @@ else
 endif
 endif
 
+ifneq ($(COMP),emscripten)
 ifeq ($(KERNEL),Darwin)
 	CXXFLAGS += -arch $(arch) -mmacosx-version-min=10.9
 	LDFLAGS += -arch $(arch) -mmacosx-version-min=10.9
+endif
 endif
 
 ### Travis CI script uses COMPILER to overwrite CXX
