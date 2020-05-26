@@ -1,0 +1,8 @@
+name: CI
+on: [push, pull_request]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: mymindstorm/setup-emsdk@v5
+    - run: npm run prepare
