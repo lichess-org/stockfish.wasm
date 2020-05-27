@@ -6,13 +6,14 @@ WebAssembly port of the strong chess engine
 on https://lichess.org/analysis.
 
 [![npm version](https://badge.fury.io/js/stockfish.wasm.svg)](https://badge.fury.io/js/stockfish.wasm)
+[![CI](https://github.com/niklasf/stockfish.wasm/workflows/CI/badge.svg)](https://github.com/niklasf/stockfish.wasm/actions?query=workflow%3ACI)
 
 Requirements
 ------------
 
 Uses the latest WebAssembly threading proposal.
 
-### Chrome
+### Chromium based
 
 * Since 79: Can allocate additional memory. The default allocation suffices
   for up to 2 threads and 16 MB hash.
@@ -22,7 +23,7 @@ Uses the latest WebAssembly threading proposal.
 
 ### Firefox
 
-* Since Firefox 72: Structured cloning can no longer be enabled with flags.
+* Since Firefox 72: Structured cloning can no longer be enabled with flags, except on nightlies.
 * Since Firefox 71: Requires `javascript.options.shared_memory` and `dom.postMessage.sharedArrayBuffer.withCOOP_COEP` to be enabled in `about:flags` and these HTTP headers to be set on the top level response:
 
   ```
@@ -90,7 +91,7 @@ Current limitations
 Building
 --------
 
-Assuming [em++](https://github.com/kripken/emscripten) (>= 1.39.6) is available:
+Assuming [em++](https://github.com/kripken/emscripten) (>= 1.39.15) is available:
 
 ```
 npm run-script prepare
@@ -105,17 +106,15 @@ Requires `stockfish.js`, `stockfish.wasm` and `stockfish.worker.js`
 ```html
 <script src="stockfish.js"></script>
 <script>
-const sf = Stockfish();
-sf.addMessageListener(function (line) {
-  console.log(line);
-});
+Stockfish().then(sf => {
+  sf.addMessageListener(line => {
+    console.log(line);
+  });
 
-sf.postMessage('uci');
+  sf.postMessage('uci');
+});
 </script>
 ```
-
-Optional: Callbacks assigned to `sf['onRuntimeInitialized']` and
-`sf['onAbort']` will be called for successful/failed initialization.
 
 License
 -------
