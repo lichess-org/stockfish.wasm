@@ -310,10 +310,12 @@ ifeq ($(optimize),yes)
 		endif
 	endif
 
+	ifneq ($(COMP),emscripten)
 	ifeq ($(comp),$(filter $(comp),gcc clang icc))
 		ifeq ($(KERNEL),Darwin)
 			CXXFLAGS += -mdynamic-no-pic
 		endif
+	endif
 	endif
 endif
 
