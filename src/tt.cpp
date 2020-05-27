@@ -66,7 +66,6 @@ void TranspositionTable::resize(size_t mbSize) {
   clusterCount = mbSize * 1024 * 1024 / sizeof(Cluster);
 
   mem = realloc(mem, clusterCount * sizeof(Cluster) + CacheLineSize - 1);
-
   if (!mem)
   {
       std::cerr << "Failed to allocate " << mbSize
@@ -75,6 +74,7 @@ void TranspositionTable::resize(size_t mbSize) {
   }
 
   table = (Cluster*)((uintptr_t(mem) + CacheLineSize - 1) & ~(CacheLineSize - 1));
+
   clear();
 }
 
@@ -128,9 +128,9 @@ TTEntry* TranspositionTable::probe(const Key key, bool& found) const {
 int TranspositionTable::hashfull() const {
 
   int cnt = 0;
-  for (int i = 0; i < 1000 / ClusterSize; ++i)
+  for (int i = 0; i < 1000; ++i)
       for (int j = 0; j < ClusterSize; ++j)
           cnt += (table[i].entry[j].genBound8 & 0xF8) == generation8;
 
-  return cnt * 1000 / (ClusterSize * (1000 / ClusterSize));
+  return cnt / ClusterSize;
 }

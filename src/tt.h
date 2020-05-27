@@ -41,7 +41,7 @@ struct TTEntry {
   Value value() const { return (Value)value16; }
   Value eval()  const { return (Value)eval16; }
   Depth depth() const { return (Depth)depth8 + DEPTH_OFFSET; }
-  bool is_pv() const { return (bool)(genBound8 & 0x4); }
+  bool is_pv()  const { return (bool)(genBound8 & 0x4); }
   Bound bound() const { return (Bound)(genBound8 & 0x3); }
   void save(Key k, Value v, bool pv, Bound b, Depth d, Move m, Value ev);
 
@@ -57,12 +57,11 @@ private:
 };
 
 
-/// A TranspositionTable consists of a power of 2 number of clusters and each
-/// cluster consists of ClusterSize number of TTEntry. Each non-empty entry
-/// contains information of exactly one position. The size of a cluster should
-/// divide the size of a cache line size, to ensure that clusters never cross
-/// cache lines. This ensures best cache performance, as the cacheline is
-/// prefetched, as soon as possible.
+/// A TranspositionTable is an array of Cluster, of size clusterCount. Each
+/// cluster consists of ClusterSize number of TTEntry. Each non-empty TTEntry
+/// contains information on exactly one position. The size of a Cluster should
+/// divide the size of a cache line for best performance,
+/// as the cacheline is prefetched when possible.
 
 class TranspositionTable {
 
@@ -71,10 +70,10 @@ class TranspositionTable {
 
   struct Cluster {
     TTEntry entry[ClusterSize];
-    char padding[2]; // Align to a divisor of the cache line size
+    char padding[2]; // Pad to 32 bytes
   };
 
-  static_assert(CacheLineSize % sizeof(Cluster) == 0, "Cluster size incorrect");
+  static_assert(sizeof(Cluster) == 32, "Unexpected Cluster size");
 
 public:
  ~TranspositionTable() { free(mem); }
