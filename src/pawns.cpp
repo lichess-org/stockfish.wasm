@@ -66,6 +66,12 @@ namespace {
   #undef S
   #undef V
 
+
+  /// evaluate() calculates a score for the static pawn structure of the given position.
+  /// We cannot use the location of pieces or king in this function, as the evaluation
+  /// of the pawn structure will be stored in a small cache for speed reasons, and will
+  /// be re-used even when the pieces have moved.
+
   template<Color Us>
   Score evaluate(const Position& pos, Pawns::Entry* e) {
 
@@ -100,8 +106,8 @@ namespace {
         opposed    = theirPawns & forward_file_bb(Us, s);
         blocked    = theirPawns & (s + Up);
         stoppers   = theirPawns & passed_pawn_span(Us, s);
-        lever      = theirPawns & PawnAttacks[Us][s];
-        leverPush  = theirPawns & PawnAttacks[Us][s + Up];
+        lever      = theirPawns & pawn_attacks_bb(Us, s);
+        leverPush  = theirPawns & pawn_attacks_bb(Us, s + Up);
         doubled    = ourPawns   & (s - Up);
         neighbours = ourPawns   & adjacent_files_bb(s);
         phalanx    = neighbours & rank_bb(s);
@@ -145,22 +151,22 @@ namespace {
 
         else if (!neighbours)
         {
-            score -=   Isolated
-                     + WeakUnopposed * !opposed;
-
-            if (   (ourPawns & forward_file_bb(Them, s))
-                && popcount(opposed) == 1
+            if (     opposed
+                &&  (ourPawns & forward_file_bb(Them, s))
                 && !(theirPawns & adjacent_files_bb(s)))
                 score -= Doubled;
+            else
+                score -=  Isolated
+                        + WeakUnopposed * !opposed;
         }
 
         else if (backward)
-            score -=   Backward
-                     + WeakUnopposed * !opposed;
+            score -=  Backward
+                    + WeakUnopposed * !opposed;
 
         if (!support)
-            score -=   Doubled * doubled
-                     + WeakLever * more_than_one(lever);
+            score -=  Doubled * doubled
+                    + WeakLever * more_than_one(lever);
     }
 
     return score;
@@ -169,6 +175,7 @@ namespace {
 } // namespace
 
 namespace Pawns {
+
 
 /// Pawns::probe() looks up the current position's pawns configuration in
 /// the pawns hash table. It returns a pointer to the Entry if the position
@@ -196,7 +203,7 @@ Entry* probe(const Position& pos) {
 /// penalty for a king, looking at the king file and the two closest files.
 
 template<Color Us>
-Score Entry::evaluate_shelter(const Position& pos, Square ksq) {
+Score Entry::evaluate_shelter(const Position& pos, Square ksq) const {
 
   constexpr Color Them = ~Us;
 
@@ -253,7 +260,7 @@ Score Entry::do_king_safety(const Position& pos) {
   Bitboard pawns = pos.pieces(Us, PAWN);
   int minPawnDist = 6;
 
-  if (pawns & PseudoAttacks[KING][ksq])
+  if (pawns & attacks_bb<KING>(ksq))
       minPawnDist = 1;
   else while (pawns)
       minPawnDist = std::min(minPawnDist, distance(ksq, pop_lsb(&pawns)));

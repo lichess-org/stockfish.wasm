@@ -85,17 +85,20 @@ struct Magic {
   Bitboard  mask;
   Bitboard  magic;
   Bitboard* attacks;
+  unsigned  shift;
 
   // Compute the attack's index using the 'magic bitboards' approach
-  template<PieceType Pt>
   unsigned index(Bitboard occupied) const {
 
     if (HasPext)
         return unsigned(pext(occupied, mask));
 
-    unsigned shift = 64 - (Pt == ROOK ? 12 : 9);
+    if (Is64Bit)
+        return unsigned(((occupied & mask) * magic) >> shift);
 
-    return unsigned(((occupied & mask) * magic) >> shift);
+    unsigned lo = unsigned(occupied) & unsigned(mask);
+    unsigned hi = unsigned(occupied >> 32) & unsigned(mask >> 32);
+    return (lo * unsigned(magic) ^ hi * unsigned(magic >> 32)) >> shift;
   }
 };
 
@@ -106,6 +109,7 @@ inline Bitboard square_bb(Square s) {
   assert(is_ok(s));
   return SquareBB[s];
 }
+
 
 /// Overloads of bitwise operators between a Bitboard and a Square for testing
 /// whether a given bit is set in a bitboard, and for setting and clearing bits.
@@ -173,6 +177,12 @@ constexpr Bitboard pawn_attacks_bb(Bitboard b) {
                     : shift<SOUTH_WEST>(b) | shift<SOUTH_EAST>(b);
 }
 
+inline Bitboard pawn_attacks_bb(Color c, Square s) {
+
+  assert(is_ok(s));
+  return PawnAttacks[c][s];
+}
+
 
 /// pawn_double_attacks_bb() returns the squares doubly attacked by pawns of the
 /// given color from the squares in the given bitboard.
@@ -192,11 +202,25 @@ inline Bitboard adjacent_files_bb(Square s) {
 }
 
 
-/// between_bb() returns squares that are linearly between the given squares
-/// If the given squares are not on a same file/rank/diagonal, return 0.
+/// line_bb(Square, Square) returns a bitboard representing an entire line,
+/// from board edge to board edge, that intersects the given squares. If the
+/// given squares are not on a same file/rank/diagonal, returns 0. For instance,
+/// line_bb(SQ_C4, SQ_F7) will return a bitboard with the A2-G8 diagonal.
+
+inline Bitboard line_bb(Square s1, Square s2) {
+
+  assert(is_ok(s1) && is_ok(s2));
+  return LineBB[s1][s2];
+}
+
+
+/// between_bb() returns a bitboard representing squares that are linearly
+/// between the given squares (excluding the given squares). If the given
+/// squares are not on a same file/rank/diagonal, return 0. For instance,
+/// between_bb(SQ_C4, SQ_F7) will return a bitboard with squares D5 and E6.
 
 inline Bitboard between_bb(Square s1, Square s2) {
-  Bitboard b = LineBB[s1][s2] & ((AllSquares << s1) ^ (AllSquares << s2));
+  Bitboard b = line_bb(s1, s2) & ((AllSquares << s1) ^ (AllSquares << s2));
   return b & (b - 1); //exclude lsb
 }
 
@@ -220,8 +244,8 @@ inline Bitboard forward_file_bb(Color c, Square s) {
 
 
 /// pawn_attack_span() returns a bitboard representing all the squares that can
-/// be attacked by a pawn of the given color when it moves along its file,
-/// starting from the given square.
+/// be attacked by a pawn of the given color when it moves along its file, starting
+/// from the given square.
 
 inline Bitboard pawn_attack_span(Color c, Square s) {
   return forward_ranks_bb(c, s) & adjacent_files_bb(s);
@@ -232,7 +256,7 @@ inline Bitboard pawn_attack_span(Color c, Square s) {
 /// the given color and on the given square is a passed pawn.
 
 inline Bitboard passed_pawn_span(Color c, Square s) {
-  return forward_ranks_bb(c, s) & (adjacent_files_bb(s) | file_bb(s));
+  return pawn_attack_span(c, s) | forward_file_bb(c, s);
 }
 
 
@@ -240,7 +264,7 @@ inline Bitboard passed_pawn_span(Color c, Square s) {
 /// straight or on a diagonal line.
 
 inline bool aligned(Square s1, Square s2, Square s3) {
-  return LineBB[s1][s2] & s3;
+  return line_bb(s1, s2) & s3;
 }
 
 
@@ -255,7 +279,9 @@ template<> inline int distance<Square>(Square x, Square y) { return SquareDistan
 inline int edge_distance(File f) { return std::min(f, File(FILE_H - f)); }
 inline int edge_distance(Rank r) { return std::min(r, Rank(RANK_8 - r)); }
 
-/// Return the target square bitboard if we do not step off the board, empty otherwise
+
+/// safe_destination() returns the bitboard of target square for the given step
+/// from the given square. If the step is off the board, returns empty bitboard.
 
 inline Bitboard safe_destination(Square s, int step)
 {
@@ -263,19 +289,40 @@ inline Bitboard safe_destination(Square s, int step)
     return is_ok(to) && distance(s, to) <= 2 ? square_bb(to) : Bitboard(0);
 }
 
-/// attacks_bb() returns a bitboard representing all the squares attacked by a
-/// piece of type Pt (bishop or rook) placed on 's'.
+
+/// attacks_bb(Square) returns the pseudo attacks of the give piece type
+/// assuming an empty board.
+
+template<PieceType Pt>
+inline Bitboard attacks_bb(Square s) {
+
+  assert((Pt != PAWN) && (is_ok(s)));
+
+  return PseudoAttacks[Pt][s];
+}
+
+
+/// attacks_bb(Square, Bitboard) returns the attacks by the given piece
+/// assuming the board is occupied according to the passed Bitboard.
+/// Sliding piece attacks do not continue passed an occupied square.
 
 template<PieceType Pt>
 inline Bitboard attacks_bb(Square s, Bitboard occupied) {
 
-  const Magic& m = Pt == ROOK ? RookMagics[s] : BishopMagics[s];
-  return m.attacks[m.index<Pt>(occupied)];
+  assert((Pt != PAWN) && (is_ok(s)));
+
+  switch (Pt)
+  {
+  case BISHOP: return BishopMagics[s].attacks[BishopMagics[s].index(occupied)];
+  case ROOK  : return   RookMagics[s].attacks[  RookMagics[s].index(occupied)];
+  case QUEEN : return attacks_bb<BISHOP>(s, occupied) | attacks_bb<ROOK>(s, occupied);
+  default    : return PseudoAttacks[Pt][s];
+  }
 }
 
 inline Bitboard attacks_bb(PieceType pt, Square s, Bitboard occupied) {
 
-  assert(pt != PAWN);
+  assert((pt != PAWN) && (is_ok(s)));
 
   switch (pt)
   {
