@@ -121,7 +121,7 @@ Or from recent node (v14.4.0 tested) with flags
 `--experimental-wasm-threads --experimental-wasm-bulk-memory`:
 
 ```javascript
-const Stockfish = require('stockfish.wasm');
+const Stockfish = require('stockfish.wasm'); // the module, not the file
 
 Stockfish().then(sf => {
   // ...
