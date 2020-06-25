@@ -147,7 +147,6 @@ endif
 ifeq ($(ARCH),wasm)
 	arch = any
 	bits = 64
-	prefetch = no
 	popcnt = yes
 	COMP = emscripten
 	EXE = stockfish.js
@@ -340,7 +339,9 @@ endif
 
 ### 3.6 popcnt
 ifeq ($(popcnt),yes)
-	ifeq ($(arch),ppc64)
+	ifeq ($(COMP),emscripten)
+		CXXFLAGS += -DUSE_POPCNT
+	else ifeq ($(arch),ppc64)
 		CXXFLAGS += -DUSE_POPCNT
 	else ifeq ($(comp),icc)
 		CXXFLAGS += -msse3 -DUSE_POPCNT
