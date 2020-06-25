@@ -87,11 +87,12 @@ Current limitations
   positions. While the engine is searching, do not change options or start
   additional searches).
 * No Syzygy tablebase support.
+* No way to do a clean shutdown, freeing all resources.
 
 Building
 --------
 
-Assuming [em++](https://github.com/kripken/emscripten) (>= 1.39.15) is available:
+Assuming [em++](https://github.com/kripken/emscripten) (>= 1.39.18) is available:
 
 ```
 npm run-script prepare
@@ -114,6 +115,17 @@ Stockfish().then(sf => {
   sf.postMessage('uci');
 });
 </script>
+```
+
+Or from recent node (tested with v14.4.0) and flags
+`--experimental-wasm-threads --experimental-wasm-bulk-memory`:
+
+```javascript
+const Stockfish = require('stockfish.wasm');
+
+Stockfish().then(sf => {
+  // ...
+});
 ```
 
 License
