@@ -117,7 +117,7 @@ Stockfish().then(sf => {
 </script>
 ```
 
-Or from recent node (tested with v14.4.0) and flags
+Or from recent node (v14.4.0 tested) with flags
 `--experimental-wasm-threads --experimental-wasm-bulk-memory`:
 
 ```javascript
