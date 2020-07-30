@@ -73,6 +73,7 @@ void init(OptionsMap& o) {
   o["UCI_AnalyseMode"]       << Option(false);
   o["UCI_LimitStrength"]     << Option(false);
   o["UCI_Elo"]               << Option(1350, 1350, 2850);
+  o["UCI_ShowWDL"]           << Option(false);
 }
 
 
