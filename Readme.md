@@ -11,26 +11,27 @@ on https://lichess.org/analysis.
 Requirements
 ------------
 
-Uses the latest WebAssembly threading proposal.
+Uses the latest WebAssembly threading proposal. Requires these HTTP headers
+on the top level response:
 
-### Chromium based
+```
+Cross-Origin-Embedder-Policy: require-corp
+Cross-Origin-Opener-Policy: same-origin
+```
 
-* Since 79: Can allocate additional memory. The default allocation suffices
-  for up to 2 threads and 16 MB hash.
-* Enabled by default since 74 (desktop only)
-* [Origin Trial from 70 to 75](https://developers.chrome.com/origintrials/#/view_trial/-5026017184145473535)
-* Flag `chrome://flags/#enable-webassembly-threads` since 70
+### Chromium based (desktop only)
+
+* Since Chromium 79: Full support.
+* Chromium 74: Supports treading, but cannot allocate additional memory.
+  The default allocation suffices for up to 2 threads and 16 MB hash.
+* Chromium 70 to 73: Needs flag `chrome://flags/#enable-webassembly-threads` or
+  [Origin Trial](https://developers.chrome.com/origintrials/#/view_trial/-5026017184145473535).
 
 ### Firefox
 
-* Since Firefox 72: Structured cloning can no longer be enabled with flags, except on nightlies.
-* Since Firefox 71: Requires `javascript.options.shared_memory` and `dom.postMessage.sharedArrayBuffer.withCOOP_COEP` to be enabled in `about:flags` and these HTTP headers to be set on the top level response:
-
-  ```
-  Cross-Origin-Embedder-Policy: require-corp
-  Cross-Origin-Opener-Policy: same-origin
-  ```
-
+* Since Firefox 79: Full support.
+* Firefox 72 to 78: Structured cloning can no longer be enabled with flags, except on nightlies.
+* Firefox 71: Requires `javascript.options.shared_memory` and `dom.postMessage.sharedArrayBuffer.withCOOP_COEP` to be enabled in `about:flags`.
 * Firefox 68 to 70: Requires `javascript.options.shared_memory` to be enabled in `about:flags`
 
 ### Other browsers
