@@ -27,7 +27,6 @@
 #include "thread.h"
 #include "tt.h"
 #include "uci.h"
-#include "syzygy/tbprobe.h"
 
 namespace PSQT {
   void init();
@@ -45,10 +44,8 @@ int main(int argc, char* argv[]) {
   Bitbases::init();
   Endgames::init();
   Threads.set(size_t(Options["Threads"]));
+  TT.resize(Options["Hash"]); // After threads are up
   Search::clear(); // After threads are up
 
-  UCI::loop(argc, argv);
-
-  Threads.set(0);
   return 0;
 }

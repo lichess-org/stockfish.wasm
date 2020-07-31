@@ -65,6 +65,7 @@ private:
 
 class TranspositionTable {
 
+  static constexpr int CacheLineSize = 64;
   static constexpr int ClusterSize = 3;
 
   struct Cluster {
@@ -75,7 +76,7 @@ class TranspositionTable {
   static_assert(sizeof(Cluster) == 32, "Unexpected Cluster size");
 
 public:
- ~TranspositionTable() { aligned_ttmem_free(mem); }
+ ~TranspositionTable() { free(mem); }
   void new_search() { generation8 += 8; } // Lower 3 bits are used by PV flag and Bound
   TTEntry* probe(const Key key, bool& found) const;
   int hashfull() const;

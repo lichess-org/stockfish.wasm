@@ -1,0 +1,30 @@
+<script src="stockfish.js"></script>
+<script>
+Stockfish().then(sf => {
+  window.sf = sf;
+
+  var depth = 5;
+  var listener = function (line) {
+    console.log('>', line);
+    if (line.includes('bestmove') && depth < 25) {
+      depth++;
+      console.log('============ DEPTH ' + depth + ' ============');
+      sf.postMessage('go depth ' + depth);
+    }
+  };
+
+  sf.addMessageListener(listener);
+  //sf.removeMessageListener(listener);
+
+  sf.postMessage('uci');
+  sf.postMessage('setoption name UCI_AnalyseMode value true');
+  sf.postMessage('setoption name Analysis Contempt value Off');
+  setTimeout(() => {
+    console.log('============ START ============');
+    sf.postMessage('setoption name Threads value 16');
+    sf.postMessage('setoption name Hash value 1024');
+    sf.postMessage('position fen 4r1k1/r1q2ppp/ppp2n2/4P3/5Rb1/1N1BQ3/PPP3PP/R5K1 w - - 1 17');
+    sf.postMessage('go depth ' + depth);
+  }, 3000);
+});
+</script>

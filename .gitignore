@@ -1,3 +1,6 @@
-src/stockfish
-src/.depend
 *.o
+src/.depend
+stockfish.js
+stockfish.js.mem
+stockfish.wasm
+stockfish.worker.js

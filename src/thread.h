@@ -72,7 +72,8 @@ public:
   uint64_t ttHitAverage;
   int selDepth, nmpMinPly;
   Color nmpColor;
-  std::atomic<uint64_t> nodes, tbHits, bestMoveChanges;
+  std::atomic_bool threadStarted;
+  std::atomic<uint64_t> nodes, bestMoveChanges;
 
   Position rootPos;
   Search::RootMoves rootMoves;
@@ -116,7 +117,6 @@ struct ThreadPool : public std::vector<Thread*> {
 
   MainThread* main()        const { return static_cast<MainThread*>(front()); }
   uint64_t nodes_searched() const { return accumulate(&Thread::nodes); }
-  uint64_t tb_hits()        const { return accumulate(&Thread::tbHits); }
   Thread* get_best_thread() const;
   void start_searching();
   void wait_for_search_finished() const;

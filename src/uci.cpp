@@ -24,6 +24,7 @@
 #include <iostream>
 #include <sstream>
 #include <string>
+#include <emscripten.h>
 
 #include "evaluate.h"
 #include "movegen.h"
@@ -33,7 +34,6 @@
 #include "timeman.h"
 #include "tt.h"
 #include "uci.h"
-#include "syzygy/tbprobe.h"
 
 using namespace std;
 
@@ -175,7 +175,6 @@ namespace {
         if (name == "uci_variant") {
             Variant variant = UCI::variant_from_name(value);
             sync_cout << "info string variant " << (string)Options["UCI_Variant"] << " startpos " << StartFENs[variant] << sync_endl;
-            Tablebases::init(variant, Options["SyzygyPath"]);
         }
     }
     else
@@ -294,20 +293,23 @@ namespace {
 /// run 'bench', once the command is executed the function returns immediately.
 /// In addition to the UCI ones, also some additional debug commands are supported.
 
-void UCI::loop(int argc, char* argv[]) {
+EMSCRIPTEN_KEEPALIVE extern "C" int uci_command(const char *c_cmd) {
+  std::string cmd(c_cmd);
 
-  Position pos;
-  string token, cmd;
-  StateListPtr states(new std::deque<StateInfo>(1));
+  static bool initialized = false;
+  static Position pos;
+  string token;
+  static StateListPtr states(new std::deque<StateInfo>(1));
 
-  pos.set(StartFENs[CHESS_VARIANT], false, CHESS_VARIANT, &states->back(), Threads.main());
+  if (!initialized) {
+      pos.set(StartFENs[CHESS_VARIANT], false, CHESS_VARIANT, &states->back(), Threads.main());
+      initialized = true;
+  }
 
-  for (int i = 1; i < argc; ++i)
-      cmd += std::string(argv[i]) + " ";
-
-  do {
-      if (argc == 1 && !getline(cin, cmd)) // Block here waiting for input or EOF
-          cmd = "quit";
+  for (Thread* th : Threads) {
+      if (!th->threadStarted)
+          return 1;
+  }
 
       istringstream is(cmd);
 
@@ -346,7 +348,7 @@ void UCI::loop(int argc, char* argv[]) {
       else
           sync_cout << "Unknown command: " << cmd << sync_endl;
 
-  } while (token != "quit" && argc == 1); // Command line args are one-shot
+  return 0;
 }
 
 

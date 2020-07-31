@@ -38,7 +38,7 @@ PGOBENCH = ./$(EXE) bench
 ### Source and object files
 SRCS = benchmark.cpp bitbase.cpp bitboard.cpp endgame.cpp evaluate.cpp main.cpp \
 	material.cpp misc.cpp movegen.cpp movepick.cpp pawns.cpp position.cpp psqt.cpp \
-	search.cpp thread.cpp timeman.cpp tt.cpp uci.cpp ucioption.cpp tune.cpp syzygy/tbprobe.cpp
+	search.cpp thread.cpp timeman.cpp tt.cpp uci.cpp ucioption.cpp tune.cpp
 
 OBJS = $(notdir $(SRCS:.cpp=.o))
 
@@ -149,6 +149,13 @@ ifeq ($(ARCH),ppc-64)
 	prefetch = yes
 endif
 
+ifeq ($(ARCH),wasm)
+	arch = any
+	popcnt = yes
+	COMP = emscripten
+	EXE = stockfish.js
+endif
+
 ### ==========================================================================
 ### Section 3. Low-level Configuration
 ### ==========================================================================
@@ -235,6 +242,14 @@ ifeq ($(COMP),clang)
 	endif
 endif
 
+ifeq ($(COMP),emscripten)
+	comp=clang
+	CXX=em++
+	EMFLAGS += -s ENVIRONMENT=web,worker,node -s MODULARIZE=1 -s EXPORT_NAME="Stockfish" -s EXIT_RUNTIME=0 -s USE_PTHREADS=1 -s PTHREAD_POOL_SIZE=1 -s INITIAL_MEMORY=67108864 -s "EXTRA_EXPORTED_RUNTIME_METHODS=['ccall']" -s "INCOMING_MODULE_JS_API=['print', 'postRun', 'onAbort', 'onRuntimeInitialized']" -s ASSERTIONS=0 -s ALLOW_MEMORY_GROWTH=1 -s MAXIMUM_MEMORY=2147483648 --pre-js pre.js
+	CXXFLAGS += $(EMFLAGS)
+	LDFLAGS += $(EMFLAGS)
+endif
+
 ifeq ($(comp),icc)
 	profile_make = icc-profile-make
 	profile_use = icc-profile-use
@@ -248,9 +263,11 @@ else
 endif
 endif
 
+ifneq ($(COMP),emscripten)
 ifeq ($(KERNEL),Darwin)
 	CXXFLAGS += -arch $(arch) -mmacosx-version-min=10.9
 	LDFLAGS += -arch $(arch) -mmacosx-version-min=10.9
+endif
 endif
 
 ### Travis CI script uses COMPILER to overwrite CXX
@@ -275,7 +292,7 @@ ifneq ($(comp),mingw)
 endif
 
 ### 3.2.1 Debugging
-CXXFLAGS += -DANTI -DANTIHELPMATE -DATOMIC -DBUGHOUSE -DCRAZYHOUSE -DDISPLACEDGRID -DEXTINCTION -DGIVEAWAY -DGRID -DHELPMATE -DHORDE -DKNIGHTRELAY -DKOTH -DLOOP -DLOSERS -DPLACEMENT -DRACE -DRELAY -DSLIPPEDGRID -DSUICIDE -DTHREECHECK -DTWOKINGS -DTWOKINGSSYMMETRIC
+CXXFLAGS += -DANTI -DATOMIC -DCRAZYHOUSE -DGIVEAWAY -DHORDE -DKOTH -DRACE -DTHREECHECK
 ifneq (,$(filter -DBUGHOUSE,$(CXXFLAGS)))
 ifeq (,$(filter -DCRAZYHOUSE,$(CXXFLAGS)))
 $(error Crazyhouse (-DCRAZYHOUSE) is required for subvariant bughouse chess)
@@ -349,10 +366,12 @@ ifeq ($(optimize),yes)
 		endif
 	endif
 
+	ifneq ($(COMP),emscripten)
 	ifeq ($(comp),$(filter $(comp),gcc clang icc))
 		ifeq ($(KERNEL),Darwin)
 			CXXFLAGS += -mdynamic-no-pic
 		endif
+	endif
 	endif
 endif
 
@@ -373,7 +392,9 @@ endif
 
 ### 3.6 popcnt
 ifeq ($(popcnt),yes)
-	ifeq ($(arch),$(filter $(arch),ppc64 armv8-a))
+	ifeq ($(COMP),emscripten)
+		CXXFLAGS += -DUSE_POPCNT
+	else ifeq ($(arch),$(filter $(arch),ppc64 armv8-a))
 		CXXFLAGS += -DUSE_POPCNT
 	else ifeq ($(comp),icc)
 		CXXFLAGS += -msse3 -DUSE_POPCNT
@@ -506,7 +527,7 @@ clean: objclean profileclean
 
 # clean binaries and objects
 objclean:
-	@rm -f $(EXE) *.o ./syzygy/*.o
+	@rm -f $(EXE) *.o
 
 # clean auxiliary profiling files
 profileclean:
@@ -558,7 +579,7 @@ config-sanity:
 	@test "$(pext)" = "yes" || test "$(pext)" = "no"
 	@test "$(comp)" = "gcc" || test "$(comp)" = "icc" || test "$(comp)" = "mingw" || test "$(comp)" = "clang"
 
-$(EXE): $(OBJS)
+$(EXE): $(OBJS) pre.js
 	$(CXX) -o $@ $(OBJS) $(LDFLAGS)
 
 clang-profile-make:

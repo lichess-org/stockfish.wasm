@@ -25,7 +25,6 @@
 #include "search.h"
 #include "thread.h"
 #include "uci.h"
-#include "syzygy/tbprobe.h"
 #include "tt.h"
 
 #ifndef _WIN32
@@ -56,7 +55,17 @@ Thread::Thread(size_t n) : idx(n) {
   pthread_create(&nativeThread, &attr, run_idle_loop, this);
 #endif
 
-  wait_for_search_finished();
+  // (A) Upstream does wait_for_search_finished() directly here.
+  //
+  // This deadlocks with emscripten: We are waiting for the newly created
+  // thread to set the condition variable before we yield to the browser. But
+  // we need to yield to the browser to create the worker for the newly created
+  // thread.
+  //
+  // https://bugzilla.mozilla.org/show_bug.cgi?id=1049079
+  //
+  // Instead we introduced threadStarted (B) and retry uci_command with
+  // exponential backoff until all threads have started.
 }
 
 
@@ -133,18 +142,12 @@ void Thread::wait_for_search_finished() {
 
 void Thread::idle_loop() {
 
-  // If OS already scheduled us on a different group than 0 then don't overwrite
-  // the choice, eventually we are one of many one-threaded processes running on
-  // some Windows NUMA hardware, for instance in fishtest. To make it simple,
-  // just check if running threads are below a threshold, in this case all this
-  // NUMA machinery is not needed.
-  if (Options["Threads"] > 8)
-      WinProcGroup::bindThisThread(idx);
-
   while (true)
   {
       std::unique_lock<std::mutex> lk(mutex);
       searching = false;
+      threadStarted = true; // (B)
+
       cv.notify_one(); // Wake up anyone waiting for search finished
       cv.wait(lk, [&]{ return searching; });
 
@@ -160,25 +163,27 @@ void Thread::idle_loop() {
 /// ThreadPool::set() creates/destroys threads to match the requested number.
 /// Created and launched threads will immediately go to sleep in idle_loop.
 /// Upon resizing, threads are recreated to allow for binding if necessary.
+///
+/// stockfish.wasm: Unlike upstream, we reuse existing threads, because
+/// we do not care about thread binding. For the same reason, we also do not
+/// reallocate the transposition table.
 
 void ThreadPool::set(size_t requested) {
 
-  if (size() > 0) { // destroy any existing thread(s)
+  if (size() == requested)
+      return;
+
+  if (size() > 0) {
       main()->wait_for_search_finished();
 
-      while (size() > 0)
+      while (size() > requested)
           delete back(), pop_back();
   }
 
-  if (requested > 0) { // create new thread(s)
-      push_back(new MainThread(0));
-
+  if (requested > 0) {
       while (size() < requested)
-          push_back(new Thread(size()));
+          push_back(size() ? new Thread(size()) : new MainThread(0));
       clear();
-
-      // Reallocate the hash with the new threadpool size
-      TT.resize(size_t(Options["Hash"]));
 
       // Init thread number dependent search params.
       Search::init();
@@ -218,9 +223,6 @@ void ThreadPool::start_thinking(Position& pos, StateListPtr& states,
           || std::count(limits.searchmoves.begin(), limits.searchmoves.end(), m))
           rootMoves.emplace_back(m);
 
-  if (!rootMoves.empty())
-      Tablebases::rank_root_moves(pos, rootMoves);
-
   // After ownership transfer 'states' becomes empty, so if we stop the search
   // and call 'go' again without setting a new position states.get() == NULL.
   assert(states.get() || setupStates.get());
@@ -237,7 +239,7 @@ void ThreadPool::start_thinking(Position& pos, StateListPtr& states,
 
   for (Thread* th : *this)
   {
-      th->nodes = th->tbHits = th->nmpMinPly = th->bestMoveChanges = 0;
+      th->nodes = th->nmpMinPly = th->bestMoveChanges = 0;
       th->rootDepth = th->completedDepth = 0;
       th->rootMoves = rootMoves;
       th->rootPos.set(pos.fen(), pos.is_chess960(), pos.subvariant(), &setupStates->back(), th);

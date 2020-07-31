@@ -35,22 +35,11 @@
 #include "timeman.h"
 #include "tt.h"
 #include "uci.h"
-#include "syzygy/tbprobe.h"
 
 namespace Search {
 
   LimitsType Limits;
 }
-
-namespace Tablebases {
-
-  int Cardinality;
-  bool RootInTB;
-  bool UseRule50;
-  Depth ProbeDepth;
-}
-
-namespace TB = Tablebases;
 
 using std::string;
 using Eval::evaluate;
@@ -353,7 +342,6 @@ void Search::clear() {
   Time.availableNodes = 0;
   TT.clear();
   Threads.clear();
-  Tablebases::init(UCI::variant_from_name(Options["UCI_Variant"]), Options["SyzygyPath"]); // Free mapped files
 }
 
 
@@ -361,6 +349,11 @@ void Search::clear() {
 /// command. It searches from the root position and outputs the "bestmove".
 
 void MainThread::search() {
+
+  // (D) Initialize startTime on the same thread that will measure
+  // Time.elapsed(), because even steady clocks are not properly synchronized
+  // between WASM threads.
+  Search::Limits.startTime = now();
 
   if (Limits.perft)
   {
@@ -537,9 +530,7 @@ void Thread::search() {
           if (pvIdx == pvLast)
           {
               pvFirst = pvLast;
-              for (pvLast++; pvLast < rootMoves.size(); pvLast++)
-                  if (rootMoves[pvLast].tbRank != rootMoves[pvFirst].tbRank)
-                      break;
+              pvLast = rootMoves.size();
           }
 
           // Reset UCI info selDepth for each depth and each PV line
@@ -869,87 +860,7 @@ namespace {
             return ttValue;
     }
 
-    // Step 5. Tablebases probe
-#ifdef EXTINCTION
-    if (pos.is_extinction()) {} else
-#endif
-#ifdef GRID
-    if (pos.is_grid()) {} else
-#endif
-#ifdef KOTH
-    if (pos.is_koth()) {} else
-#endif
-#ifdef LOSERS
-    if (pos.is_losers()) {} else
-#endif
-#ifdef RACE
-    if (pos.is_race()) {} else
-#endif
-#ifdef THREECHECK
-    if (pos.is_three_check()) {} else
-#endif
-#ifdef HORDE
-    if (pos.is_horde()) {} else
-#endif
-#ifdef HELPMATE
-    if (pos.is_helpmate()) {} else
-#endif
-#ifdef KNIGHTRELAY
-    if (pos.is_knight_relay() && pos.pieces(PAWN, KNIGHT)) {} else
-#endif
-#ifdef RELAY
-    if (pos.is_relay()) {} else
-#endif
-    if (!rootNode && TB::Cardinality)
-    {
-        int piecesCount = pos.count<ALL_PIECES>();
-
-        if (    piecesCount <= TB::Cardinality
-            && (piecesCount <  TB::Cardinality || depth >= TB::ProbeDepth)
-            &&  pos.rule50_count() == 0
-            && !pos.can_castle(ANY_CASTLING))
-        {
-            TB::ProbeState err;
-            TB::WDLScore wdl = Tablebases::probe_wdl(pos, &err);
-
-            // Force check of time on the next occasion
-            if (thisThread == Threads.main())
-                static_cast<MainThread*>(thisThread)->callsCnt = 0;
-
-            if (err != TB::ProbeState::FAIL)
-            {
-                thisThread->tbHits.fetch_add(1, std::memory_order_relaxed);
-
-                int drawScore = TB::UseRule50 ? 1 : 0;
-
-                // use the range VALUE_MATE_IN_MAX_PLY to VALUE_TB_WIN_IN_MAX_PLY to score
-                value =  wdl < -drawScore ? VALUE_MATED_IN_MAX_PLY + ss->ply + 1
-                       : wdl >  drawScore ? VALUE_MATE_IN_MAX_PLY - ss->ply - 1
-                                          : VALUE_DRAW + 2 * wdl * drawScore;
-
-                Bound b =  wdl < -drawScore ? BOUND_UPPER
-                         : wdl >  drawScore ? BOUND_LOWER : BOUND_EXACT;
-
-                if (    b == BOUND_EXACT
-                    || (b == BOUND_LOWER ? value >= beta : value <= alpha))
-                {
-                    tte->save(posKey, value_to_tt(value, ss->ply), ttPv, b,
-                              std::min(MAX_PLY - 1, depth + 6),
-                              MOVE_NONE, VALUE_NONE);
-
-                    return value;
-                }
-
-                if (PvNode)
-                {
-                    if (b == BOUND_LOWER)
-                        bestValue = value, alpha = std::max(alpha, bestValue);
-                    else
-                        maxValue = value;
-                }
-            }
-        }
-    }
+    // Step 5. Tablebases probe (disabled)
 
     CapturePieceToHistory& captureHistory = thisThread->captureHistory;
 
@@ -2130,12 +2041,11 @@ void MainThread::check_time() {
 string UCI::pv(const Position& pos, Depth depth, Value alpha, Value beta) {
 
   std::stringstream ss;
-  TimePoint elapsed = Time.elapsed() + 1;
+  long elapsed = std::max((long)Time.elapsed(), 1L); // Avoid divide by zero
   const RootMoves& rootMoves = pos.this_thread()->rootMoves;
   size_t pvIdx = pos.this_thread()->pvIdx;
   size_t multiPV = std::min((size_t)Options["MultiPV"], rootMoves.size());
   uint64_t nodesSearched = Threads.nodes_searched();
-  uint64_t tbHits = Threads.tb_hits() + (TB::RootInTB ? rootMoves.size() : 0);
 
   for (size_t i = 0; i < multiPV; ++i)
   {
@@ -2146,9 +2056,6 @@ string UCI::pv(const Position& pos, Depth depth, Value alpha, Value beta) {
 
       Depth d = updated ? depth : depth - 1;
       Value v = updated ? rootMoves[i].score : rootMoves[i].previousScore;
-
-      bool tb = TB::RootInTB && abs(v) < VALUE_MATE_IN_MAX_PLY;
-      v = tb ? rootMoves[i].tbScore : v;
 
       if (ss.rdbuf()->in_avail()) // Not at first line
           ss << "\n";
@@ -2162,7 +2069,7 @@ string UCI::pv(const Position& pos, Depth depth, Value alpha, Value beta) {
       if (Options["UCI_ShowWDL"])
           ss << UCI::wdl(v, pos.game_ply());
 
-      if (!tb && i == pvIdx)
+      if (i == pvIdx)
           ss << (v >= beta ? " lowerbound" : v <= alpha ? " upperbound" : "");
 
       ss << " nodes "    << nodesSearched
@@ -2171,8 +2078,7 @@ string UCI::pv(const Position& pos, Depth depth, Value alpha, Value beta) {
       if (elapsed > 1000) // Earlier makes little sense
           ss << " hashfull " << TT.hashfull();
 
-      ss << " tbhits "   << tbHits
-         << " time "     << elapsed
+      ss << " time "     << elapsed
          << " pv";
 
       for (Move m : rootMoves[i].pv)
@@ -2210,51 +2116,4 @@ bool RootMove::extract_ponder_from_tt(Position& pos) {
 
     pos.undo_move(pv[0]);
     return pv.size() > 1;
-}
-
-void Tablebases::rank_root_moves(Position& pos, Search::RootMoves& rootMoves) {
-
-    RootInTB = false;
-    UseRule50 = bool(Options["Syzygy50MoveRule"]);
-    ProbeDepth = int(Options["SyzygyProbeDepth"]);
-    Cardinality = int(Options["SyzygyProbeLimit"]);
-    bool dtz_available = true;
-
-    // Tables with fewer pieces than SyzygyProbeLimit are searched with
-    // ProbeDepth == DEPTH_ZERO
-    if (Cardinality > MaxCardinality)
-    {
-        Cardinality = MaxCardinality;
-        ProbeDepth = 0;
-    }
-
-    if (Cardinality >= popcount(pos.pieces()) && !pos.can_castle(ANY_CASTLING))
-    {
-        // Rank moves using DTZ tables
-        RootInTB = root_probe(pos, rootMoves);
-
-        if (!RootInTB)
-        {
-            // DTZ tables are missing; try to rank moves using WDL tables
-            dtz_available = false;
-            RootInTB = root_probe_wdl(pos, rootMoves);
-        }
-    }
-
-    if (RootInTB)
-    {
-        // Sort moves according to TB rank
-        std::sort(rootMoves.begin(), rootMoves.end(),
-                  [](const RootMove &a, const RootMove &b) { return a.tbRank > b.tbRank; } );
-
-        // Probe during search only if DTZ is not available and we are winning
-        if (dtz_available || rootMoves[0].tbScore <= VALUE_DRAW)
-            Cardinality = 0;
-    }
-    else
-    {
-        // Clean up if root_probe() and root_probe_wdl() have failed
-        for (auto& m : rootMoves)
-            m.tbRank = 0;
-    }
 }

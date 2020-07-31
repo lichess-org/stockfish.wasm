@@ -63,16 +63,17 @@ void TranspositionTable::resize(size_t mbSize) {
 
   Threads.main()->wait_for_search_finished();
 
-  aligned_ttmem_free(mem);
-
   clusterCount = mbSize * 1024 * 1024 / sizeof(Cluster);
-  table = static_cast<Cluster*>(aligned_ttmem_alloc(clusterCount * sizeof(Cluster), mem));
+
+  mem = realloc(mem, clusterCount * sizeof(Cluster) + CacheLineSize - 1);
   if (!mem)
   {
       std::cerr << "Failed to allocate " << mbSize
                 << "MB for transposition table." << std::endl;
       exit(EXIT_FAILURE);
   }
+
+  table = (Cluster*)((uintptr_t(mem) + CacheLineSize - 1) & ~(CacheLineSize - 1));
 
   clear();
 }
@@ -83,28 +84,7 @@ void TranspositionTable::resize(size_t mbSize) {
 
 void TranspositionTable::clear() {
 
-  std::vector<std::thread> threads;
-
-  for (size_t idx = 0; idx < Options["Threads"]; ++idx)
-  {
-      threads.emplace_back([this, idx]() {
-
-          // Thread binding gives faster search on systems with a first-touch policy
-          if (Options["Threads"] > 8)
-              WinProcGroup::bindThisThread(idx);
-
-          // Each thread will zero its part of the hash table
-          const size_t stride = size_t(clusterCount / Options["Threads"]),
-                       start  = size_t(stride * idx),
-                       len    = idx != Options["Threads"] - 1 ?
-                                stride : clusterCount - start;
-
-          std::memset(&table[start], 0, len * sizeof(Cluster));
-      });
-  }
-
-  for (std::thread& th : threads)
-      th.join();
+  std::memset(mem, 0, clusterCount * sizeof(Cluster) + CacheLineSize - 1);
 }
 
 
