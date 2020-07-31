@@ -42,8 +42,6 @@ SRCS = benchmark.cpp bitbase.cpp bitboard.cpp endgame.cpp evaluate.cpp main.cpp 
 
 OBJS = $(notdir $(SRCS:.cpp=.o))
 
-VPATH = syzygy
-
 ### Establish the operating system name
 KERNEL = $(shell uname -s)
 ifeq ($(KERNEL),Linux)
