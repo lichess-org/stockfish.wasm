@@ -1,45 +1,45 @@
 (function () {
   // Message listeners
 
-  const listeners = [];
+  var listeners = [];
 
-  Module['print'] = line => {
+  Module['print'] = function (line) {
     if (listeners.length === 0) console.log(line);
-    else setTimeout(() => {
-      for (const listener of listeners) listener(line);
+    else setTimeout(function () {
+      for (var i = 0; i < listeners.length; i++) listeners[i](line);
     });
   };
 
-  Module['addMessageListener'] = listener => {
+  Module['addMessageListener'] = function (listener) {
     listeners.push(listener);
   };
 
-  Module['removeMessageListener'] = listener => {
-    const idx = listeners.indexOf(listener);
+  Module['removeMessageListener'] = function (listener) {
+    var idx = listeners.indexOf(listener);
     if (idx >= 0) listeners.splice(idx, 1);
   };
 
   // Command queue
 
-  const queue = [];
-  let backoff = 1;
+  var queue = [];
+  var backoff = 1;
 
-  const poll = () => {
-    const command = queue.shift();
+  function poll() {
+    var command = queue.shift();
     if (command === undefined) return;
 
-    const tryLater = Module.ccall('uci_command', 'number', ['string'], [command]);
+    var tryLater = Module['ccall']('uci_command', 'number', ['string'], [command]);
     if (tryLater) queue.unshift(command);
     backoff = tryLater ? (backoff * 2) : 1;
     setTimeout(poll, backoff);
-  };
+  }
 
-  Module['postMessage'] = command => {
+  Module['postMessage'] = function (command) {
     queue.push(command);
   };
 
-  Module['postRun'] = () => {
-    Module['postMessage'] = command => {
+  Module['postRun'] = function () {
+    Module['postMessage'] = function (command) {
       queue.push(command);
       if (queue.length === 1) poll();
     };

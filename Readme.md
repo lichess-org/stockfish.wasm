@@ -103,7 +103,7 @@ Usage
 -----
 
 Requires `stockfish.js`, `stockfish.wasm` and `stockfish.worker.js`
-(total size ~500K, ~170K gzipped) to be served from the same directory.
+(total size ~400K, ~150K gzipped) to be served from the same directory.
 
 ```html
 <script src="stockfish.js"></script>
