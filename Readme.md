@@ -109,7 +109,7 @@ Requires `stockfish.js`, `stockfish.wasm` and `stockfish.worker.js`
 ```html
 <script src="stockfish.js"></script>
 <script>
-Stockfish().then(sf => {
+StockfishMv().then(sf => {
   sf.addMessageListener(line => {
     console.log(line);
   });
@@ -123,9 +123,9 @@ Or from recent node (v14.4.0 tested) with flags
 `--experimental-wasm-threads --experimental-wasm-bulk-memory`:
 
 ```javascript
-const Stockfish = require('stockfish-mv.wasm'); // the module, not the file
+const StockfishMv = require('stockfish-mv.wasm'); // the module, not the file
 
-Stockfish().then(sf => {
+StockfishMv().then(sf => {
   // ...
 });
 ```
