@@ -79,6 +79,7 @@ namespace Eval::NNUE {
     std::uint32_t header;
     stream.read(reinterpret_cast<char*>(&header), sizeof(header));
     if (!stream || header != T::GetHashValue()) return false;
+    sync_cout << "Gonna pointer->ReadParameters" << sync_endl;
     return pointer->ReadParameters(stream);
   }
 
@@ -99,9 +100,13 @@ namespace Eval::NNUE {
     stream.read(reinterpret_cast<char*>(&version), sizeof(version));
     stream.read(reinterpret_cast<char*>(hash_value), sizeof(*hash_value));
     stream.read(reinterpret_cast<char*>(&size), sizeof(size));
+    sync_cout << "Gonna check stream" << sync_endl;
+    if (!stream) return false;
+    sync_cout << "Gonna check version" << sync_endl;
     if (!stream || version != kVersion) return false;
     architecture->resize(size);
     stream.read(&(*architecture)[0], size);
+    sync_cout << "Almost done with header" << sync_endl;
     return !stream.fail();
   }
 
@@ -110,10 +115,14 @@ namespace Eval::NNUE {
 
     std::uint32_t hash_value;
     std::string architecture;
+    sync_cout << "Gonna read header" << sync_endl;
     if (!ReadHeader(stream, &hash_value, &architecture)) return false;
+    sync_cout << "Gonna check hash" << sync_endl;
     if (hash_value != kHashValue) return false;
+    sync_cout << "Gonna read details" << sync_endl;
     if (!Detail::ReadParameters(stream, feature_transformer)) return false;
     if (!Detail::ReadParameters(stream, network)) return false;
+    sync_cout << "Gonna check eof" << sync_endl;
     return stream && stream.peek() == std::ios::traits_type::eof();
   }
 
@@ -150,9 +159,7 @@ namespace Eval::NNUE {
     Initialize();
     fileName = evalFile;
 
-    sync_cout << "[[" << evalFileContents << "]]" << sync_endl;
-
-    std::stringstream stream(evalFileContents, std::ios::binary);
+    std::stringstream stream(evalFileContents);
 
     const bool result = ReadParameters(stream);
 

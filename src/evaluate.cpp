@@ -39,12 +39,12 @@ namespace Eval {
   bool evalFileLoading;
 
   void download_success(emscripten_fetch_t *fetch) {
-      sync_cout << "Downloaded eval file." << sync_endl;
+      sync_cout << "Downloaded eval file (" << fetch->totalBytes << " bytes)." << sync_endl;
       std::string evalFileContents((const char *) fetch->data, fetch->totalBytes);
       evalFileLoaded = Eval::NNUE::load_eval_file("nn-82215d0fd0df.nnue", evalFileContents);
       sync_cout << "Load eval file success: " << evalFileLoaded << sync_endl;
       emscripten_fetch_close(fetch);
-      evalFileLoading = false;
+      //evalFileLoading = false;
   }
 
   void download_error(emscripten_fetch_t *fetch) {
