@@ -89,7 +89,6 @@ Current limitations
   positions. While the engine is searching, do not change options or start
   additional searches).
 * No Syzygy tablebase support.
-* No way to do a clean shutdown, freeing all resources.
 
 Building
 --------
