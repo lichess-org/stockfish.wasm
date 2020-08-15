@@ -23,6 +23,7 @@
 #include <iomanip>
 #include <sstream>
 #include <iostream>
+#include <emscripten/fetch.h>
 
 #include "bitboard.h"
 #include "evaluate.h"
@@ -35,12 +36,43 @@ namespace Eval {
 
   bool useNNUE;
   bool evalFileLoaded;
+  bool evalFileLoading;
 
-  void init_NNUE() {
+  void download_success(emscripten_fetch_t *fetch) {
+      sync_cout << "Downloaded eval file." << sync_endl;
+      std::string evalFileContents((const char *) fetch->data, fetch->totalBytes);
+      evalFileLoaded = Eval::NNUE::load_eval_file("nn-82215d0fd0df.nnue", evalFileContents);
+      sync_cout << "Load eval file success: " << evalFileLoaded << sync_endl;
+      emscripten_fetch_close(fetch);
+      evalFileLoading = false;
+  }
+
+  void download_error(emscripten_fetch_t *fetch) {
+      std::cerr << "Failed to download eval file." << std::endl;
+      emscripten_fetch_close(fetch);
+      evalFileLoading = false;
+  }
+
+
+  int init_NNUE() {
 
     useNNUE = Options["Use NNUE"];
-    if (!evalFileLoaded)
-        evalFileLoaded = Eval::NNUE::load_eval_file("nn-82215d0fd0df.nnue");
+    if (!useNNUE || evalFileLoaded)
+        return 0;
+
+    if (!evalFileLoading) {
+        evalFileLoading = true;
+
+        emscripten_fetch_attr_t attr;
+        emscripten_fetch_attr_init(&attr);
+        strcpy(attr.requestMethod, "GET");
+        attr.attributes = EMSCRIPTEN_FETCH_LOAD_TO_MEMORY;
+        attr.onsuccess = download_success;
+        attr.onerror = download_error;
+        emscripten_fetch(&attr, "nn-82215d0fd0df.nnue");
+    }
+
+    return 1;
   }
 
   void verify_NNUE() {

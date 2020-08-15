@@ -18,7 +18,7 @@
 
 // Code for calculating NNUE evaluation function
 
-#include <fstream>
+#include <sstream>
 #include <iostream>
 #include <set>
 
@@ -145,12 +145,14 @@ namespace Eval::NNUE {
   }
 
   // Load the evaluation function file
-  bool load_eval_file(const std::string& evalFile) {
+  bool load_eval_file(const std::string& evalFile, const std::string& evalFileContents) {
 
     Initialize();
     fileName = evalFile;
 
-    std::ifstream stream(evalFile, std::ios::binary);
+    sync_cout << "[[" << evalFileContents << "]]" << sync_endl;
+
+    std::stringstream stream(evalFileContents, std::ios::binary);
 
     const bool result = ReadParameters(stream);
 

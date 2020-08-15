@@ -32,7 +32,7 @@ namespace Eval {
 
   extern bool useNNUE;
   extern std::string eval_file_loaded;
-  void init_NNUE();
+  int init_NNUE();
   void verify_NNUE();
 
   namespace NNUE {
@@ -40,7 +40,7 @@ namespace Eval {
     Value evaluate(const Position& pos);
     Value compute_eval(const Position& pos);
     void  update_eval(const Position& pos);
-    bool  load_eval_file(const std::string& evalFile);
+    bool  load_eval_file(const std::string& evalFile, const std::string &evalFileContents);
 
   } // namespace NNUE
 

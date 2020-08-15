@@ -244,6 +244,10 @@ EMSCRIPTEN_KEEPALIVE extern "C" int uci_command(const char *c_cmd) {
           return 1;
   }
 
+  if (Eval::init_NNUE()) {
+      return 1;
+  }
+
       istringstream is(cmd);
 
       token.clear(); // Avoid a stale if getline() returns empty or blank line
