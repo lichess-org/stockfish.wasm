@@ -34,34 +34,25 @@
 namespace Eval {
 
   bool useNNUE;
-  std::string eval_file_loaded="None";
+  bool evalFileLoaded;
 
   void init_NNUE() {
 
     useNNUE = Options["Use NNUE"];
-    std::string eval_file = std::string(Options["EvalFile"]);
-    if (useNNUE && eval_file_loaded != eval_file)
-        if (Eval::NNUE::load_eval_file(eval_file))
-            eval_file_loaded = eval_file;
+    if (!evalFileLoaded)
+        evalFileLoaded = Eval::NNUE::load_eval_file("nn-82215d0fd0df.nnue");
   }
 
   void verify_NNUE() {
 
-    std::string eval_file = std::string(Options["EvalFile"]);
-    if (useNNUE && eval_file_loaded != eval_file)
+    if (useNNUE && !evalFileLoaded)
     {
-        UCI::OptionsMap defaults;
-        UCI::init(defaults);
-
-        std::cerr << "NNUE evaluation used, but the network file " << eval_file << " was not loaded successfully. "
-                  << "These network evaluation parameters must be available, and compatible with this version of the code. "
-                  << "The UCI option EvalFile might need to specify the full path, including the directory/folder name, to the file. "
-                  << "The default net can be downloaded from: https://tests.stockfishchess.org/api/nn/"+std::string(defaults["EvalFile"]) << std::endl;
+        std::cerr << "NNUE evaluation used, but the network file was not loaded successfully." << std::endl;
         std::exit(EXIT_FAILURE);
     }
 
     if (useNNUE)
-        sync_cout << "info string NNUE evaluation using " << eval_file << " enabled." << sync_endl;
+        sync_cout << "info string NNUE evaluation enabled." << sync_endl;
     else
         sync_cout << "info string classical evaluation enabled." << sync_endl;
   }
