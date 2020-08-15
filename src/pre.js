@@ -1,6 +1,7 @@
 (function () {
   // Message listeners
 
+  var quit = false;
   var listeners = [];
 
   Module['print'] = function (line) {
@@ -19,6 +20,11 @@
     if (idx >= 0) listeners.splice(idx, 1);
   };
 
+  Module['terminate'] = function () {
+    quit = true;
+    PThread.terminateAllThreads();
+  };
+
   // Command queue
 
   var queue = [];
@@ -26,7 +32,9 @@
 
   function poll() {
     var command = queue.shift();
-    if (command === undefined) return;
+    if (quit || command === undefined) return;
+
+    if (command === 'quit') return Module['terminate']();
 
     var tryLater = Module['ccall']('uci_command', 'number', ['string'], [command]);
     if (tryLater) queue.unshift(command);
