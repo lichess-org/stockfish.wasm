@@ -236,6 +236,9 @@ endif
 ifeq ($(ARCH),wasm)
 	arch = any
 	popcnt = yes
+	sse = yes
+	sse3 = yes
+	sse41 = yes
 	COMP = emscripten
 	EXE = stockfish.js
 endif
@@ -332,6 +335,7 @@ endif
 ifeq ($(COMP),emscripten)
 	comp=clang
 	CXX=em++
+	EMFLAGS += -msimd128
 	EMFLAGS += -s MODULARIZE=1 -s EXPORT_NAME="Stockfish" -s ENVIRONMENT=web,worker,node -s USE_PTHREADS=1 -s PTHREAD_POOL_SIZE=1
 	EMFLAGS += -s EXIT_RUNTIME=0 -s "EXTRA_EXPORTED_RUNTIME_METHODS=['ccall']" -s "INCOMING_MODULE_JS_API=['print', 'postRun', 'onAbort', 'onRuntimeInitialized']" --pre-js pre.js
 	EMFLAGS += -s ALLOW_MEMORY_GROWTH=1 -s INITIAL_MEMORY=67108864 -s MAXIMUM_MEMORY=2147483648
