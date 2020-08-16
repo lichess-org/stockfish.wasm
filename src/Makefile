@@ -234,10 +234,10 @@ ifeq ($(ARCH),ppc-64)
 endif
 
 ifeq ($(ARCH),wasm)
-	arch = any
+	arch = x86_64
 	popcnt = yes
 	sse = yes
-	sse3 = yes
+	ssse3 = yes
 	sse41 = yes
 	COMP = emscripten
 	EXE = stockfish.js
