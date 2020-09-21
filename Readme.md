@@ -88,7 +88,7 @@ function wasmThreadsSupported() {
 Current limitations
 -------------------
 
-* Hashtable: 1024 MB.
+* Hashtable: 512 MB.
 * Threads: 16.
 * Can hang when UCI protocol is misused. (Do not send invalid commands or
   positions. While the engine is searching, do not change options or start

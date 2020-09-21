@@ -22,7 +22,7 @@ Stockfish().then(sf => {
   setTimeout(() => {
     console.log('============ START ============');
     sf.postMessage('setoption name Threads value 16');
-    sf.postMessage('setoption name Hash value 1024');
+    sf.postMessage('setoption name Hash value 512');
     sf.postMessage('position fen 4r1k1/r1q2ppp/ppp2n2/4P3/5Rb1/1N1BQ3/PPP3PP/R5K1 w - - 1 17');
     sf.postMessage('go depth ' + depth);
   }, 3000);
