@@ -20,6 +20,12 @@ Cross-Origin-Embedder-Policy: require-corp
 Cross-Origin-Opener-Policy: same-origin
 ```
 
+And the following header on the included files:
+
+```
+Cross-Origin-Embedder-Policy: require-corp
+```
+
 ### Chromium based (desktop only)
 
 * Since Chromium 79: Full support.
@@ -83,7 +89,7 @@ function wasmThreadsSupported() {
 Current limitations
 -------------------
 
-* Hashtable: 1024 MB.
+* Hashtable: 512 MB.
 * Threads: 16.
 * Can hang when UCI protocol is misused. (Do not send invalid commands or
   positions. While the engine is searching, do not change options or start
