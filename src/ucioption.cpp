@@ -55,7 +55,7 @@ bool CaseInsensitiveLess::operator() (const string& s1, const string& s2) const 
 void init(OptionsMap& o) {
 
   // Emscripten: Limited by WASM_MAX_MEMORY.
-  constexpr int MaxHashMB = 512;
+  constexpr int MaxHashMB = 1024;
 
   o["Debug Log File"]        << Option("", on_logger);
   o["Contempt"]              << Option(24, -100, 100);
