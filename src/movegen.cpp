@@ -417,10 +417,9 @@ namespace {
 #ifdef ATOMIC
     if (V == ATOMIC_VARIANT)
     {
-        // Blasts that explode the opposing king or explode all checkers
-        // are counted among evasive moves.
+        // Captures that explode the opposing king or checking piece are legal.
         if (Type == EVASIONS)
-            target |= pos.pieces(~Us) & (pos.checkers() | adjacent_squares_bb(pos.checkers() | pos.square<KING>(~Us)));
+            target |= pos.pieces(~Us) & adjacent_squares_bb(pos.checkers() | pos.square<KING>(~Us));
         target &= ~(pos.pieces(~Us) & adjacent_squares_bb(pos.pieces(Us, KING)));
     }
 #endif
@@ -808,6 +807,11 @@ ExtMove* generate<EVASIONS>(const Position& pos, ExtMove* moveList) {
   while (b)
       *moveList++ = make_move(ksq, pop_lsb(&b));
 
+#ifdef ATOMIC
+  if (pos.is_atomic() && more_than_one(pos.checkers()))
+      return us == WHITE ? generate_all<ATOMIC_VARIANT, WHITE, CAPTURES>(pos, moveList)
+                         : generate_all<ATOMIC_VARIANT, BLACK, CAPTURES>(pos, moveList);
+#endif
   if (more_than_one(pos.checkers()))
       return moveList; // Double check, only a king move can save the day
 
