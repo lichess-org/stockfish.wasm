@@ -249,7 +249,6 @@ ifeq ($(COMP),emscripten)
 	EMFLAGS += -s FILESYSTEM=0 --closure 1
 	EMFLAGS += -s STRICT=1 -s ASSERTIONS=0
 	CXXFLAGS += $(EMFLAGS)
-	LDFLAGS += $(EMFLAGS)
 endif
 
 ifeq ($(comp),icc)
@@ -381,6 +380,8 @@ ifeq ($(debug), no)
 		LDFLAGS += $(CXXFLAGS)
 	endif
 	endif
+else ifeq ($(COMP),emscripten)
+	LDFLAGS += $(EMFLAGS)
 endif
 endif
 
