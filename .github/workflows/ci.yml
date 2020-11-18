@@ -5,5 +5,5 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
-    - uses: mymindstorm/setup-emsdk@v6
+    - uses: mymindstorm/setup-emsdk@v7
     - run: npm run prepare

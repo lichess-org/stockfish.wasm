@@ -19,6 +19,12 @@ Cross-Origin-Embedder-Policy: require-corp
 Cross-Origin-Opener-Policy: same-origin
 ```
 
+And the following header on the included files:
+
+```
+Cross-Origin-Embedder-Policy: require-corp
+```
+
 ### Chromium based (desktop only)
 
 * Since Chromium 79: Full support.

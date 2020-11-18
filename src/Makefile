@@ -343,7 +343,6 @@ ifeq ($(COMP),emscripten)
 	EMFLAGS += -s FILESYSTEM=0 -s FETCH=1
 	EMFLAGS += -s STRICT=1 -s ASSERTIONS=1
 	CXXFLAGS += $(EMFLAGS)
-	LDFLAGS += $(EMFLAGS)
 endif
 
 ifeq ($(comp),icc)
@@ -540,6 +539,8 @@ ifeq ($(debug), no)
 		LDFLAGS += $(CXXFLAGS) -flto=jobserver
 	endif
 	endif
+else ifeq ($(COMP),emscripten)
+	LDFLAGS += $(EMFLAGS)
 endif
 endif
 
