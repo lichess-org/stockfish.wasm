@@ -1,8 +1,6 @@
 /*
   Stockfish, a UCI chess playing engine derived from Glaurung 2.1
-  Copyright (C) 2004-2008 Tord Romstad (Glaurung author)
-  Copyright (C) 2008-2015 Marco Costalba, Joona Kiiski, Tord Romstad
-  Copyright (C) 2015-2020 Marco Costalba, Joona Kiiski, Gary Linscott, Tord Romstad
+  Copyright (C) 2004-2020 The Stockfish developers (see AUTHORS file)
 
   Stockfish is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -182,10 +180,11 @@ namespace {
 
     static_assert(Pt != KING && Pt != PAWN, "Unsupported piece type in generate_moves()");
 
-    const Square* pl = pos.squares<Pt>(Us);
+    Bitboard bb = pos.pieces(Us, Pt);
 
-    for (Square from = *pl; from != SQ_NONE; from = *++pl)
-    {
+    while (bb) {
+        Square from = pop_lsb(&bb);
+
         if (Checks)
         {
             if (    (Pt == BISHOP || Pt == ROOK || Pt == QUEEN)
@@ -250,7 +249,7 @@ namespace {
             *moveList++ = make_move(ksq, pop_lsb(&b));
 
         if ((Type != CAPTURES) && pos.can_castle(Us & ANY_CASTLING))
-            for(CastlingRights cr : { Us & KING_SIDE, Us & QUEEN_SIDE } )
+            for (CastlingRights cr : { Us & KING_SIDE, Us & QUEEN_SIDE } )
                 if (!pos.castling_impeded(cr) && pos.can_castle(cr))
                     *moveList++ = make<CASTLING>(ksq, pos.castling_rook_square(cr));
     }
