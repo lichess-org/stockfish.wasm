@@ -93,6 +93,7 @@ Current limitations
 * Can hang when UCI protocol is misused. (Do not send invalid commands or
   positions. While the engine is searching, do not change options or start
   additional searches).
+* No NNUE support.
 * No Syzygy tablebase support.
 
 Building
