@@ -1,8 +1,6 @@
 /*
   Stockfish, a UCI chess playing engine derived from Glaurung 2.1
-  Copyright (C) 2004-2008 Tord Romstad (Glaurung author)
-  Copyright (C) 2008-2015 Marco Costalba, Joona Kiiski, Tord Romstad
-  Copyright (C) 2015-2020 Marco Costalba, Joona Kiiski, Gary Linscott, Tord Romstad
+  Copyright (C) 2004-2020 The Stockfish developers (see AUTHORS file)
 
   Stockfish is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -75,8 +73,9 @@ MovePicker::MovePicker(const Position& p, Move ttm, Depth d, const ButterflyHist
   assert(d <= 0);
 
   stage = (pos.checkers() ? EVASION_TT : QSEARCH_TT) +
-           !(ttm && (depth > DEPTH_QS_RECAPTURES || to_sq(ttm) == recaptureSquare)
-                 && pos.pseudo_legal(ttm));
+          !(   ttm
+            && (pos.checkers() || depth > DEPTH_QS_RECAPTURES || to_sq(ttm) == recaptureSquare)
+            && pos.pseudo_legal(ttm));
 }
 
 /// MovePicker constructor for ProbCut: we generate captures with SEE greater
@@ -104,7 +103,7 @@ void MovePicker::score() {
       {
 #ifdef ATOMIC
           if (pos.is_atomic())
-              m.value = pos.see<ATOMIC_VARIANT>(m) * 6
+              m.value = int(pos.see<ATOMIC_VARIANT>(m)) * 6
                    + (*captureHistory)[pos.moved_piece(m)][to_sq(m)][type_of(pos.piece_on(to_sq(m)))];
           else
 #endif
@@ -205,7 +204,7 @@ top:
           --endMoves;
 
       ++stage;
-      /* fallthrough */
+      [[fallthrough]];
 
   case REFUTATION:
       if (select<Next>([&](){ return    *cur != MOVE_NONE
@@ -213,7 +212,7 @@ top:
                                     &&  pos.pseudo_legal(*cur); }))
           return *(cur - 1);
       ++stage;
-      /* fallthrough */
+      [[fallthrough]];
 
   case QUIET_INIT:
       if (!skipQuiets)
@@ -226,7 +225,7 @@ top:
       }
 
       ++stage;
-      /* fallthrough */
+      [[fallthrough]];
 
   case QUIET:
       if (   !skipQuiets
@@ -240,7 +239,7 @@ top:
       endMoves = endBadCaptures;
 
       ++stage;
-      /* fallthrough */
+      [[fallthrough]];
 
   case BAD_CAPTURE:
       return select<Next>([](){ return true; });
@@ -251,7 +250,7 @@ top:
 
       score<EVASIONS>();
       ++stage;
-      /* fallthrough */
+      [[fallthrough]];
 
   case EVASION:
       return select<Best>([](){ return true; });
@@ -269,14 +268,14 @@ top:
           return MOVE_NONE;
 
       ++stage;
-      /* fallthrough */
+      [[fallthrough]];
 
   case QCHECK_INIT:
       cur = moves;
       endMoves = generate<QUIET_CHECKS>(pos, cur);
 
       ++stage;
-      /* fallthrough */
+      [[fallthrough]];
 
   case QCHECK:
       return select<Next>([](){ return true; });

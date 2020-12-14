@@ -7,8 +7,7 @@ matrix:
       compiler: gcc
       addons:
         apt:
-          sources: ['ubuntu-toolchain-r-test']
-          packages: ['g++-8', 'g++-8-multilib', 'g++-multilib', 'valgrind', 'expect', 'curl', 'python3.6', 'python3-pip']
+          packages: ['g++-8', 'g++-8-multilib', 'g++-multilib', 'valgrind', 'expect', 'curl']
         artifacts:
           bucket: variant-stockfish
           s3_region: us-west-2
@@ -35,23 +34,23 @@ matrix:
       compiler: clang
       addons:
         apt:
-          sources: ['ubuntu-toolchain-r-test', 'llvm-toolchain-xenial-6.0']
-          packages: ['clang-6.0', 'llvm-6.0-dev', 'g++-multilib', 'valgrind', 'expect', 'curl', 'python3.6', 'python3-pip']
+          packages: ['clang-10', 'llvm-10-dev', 'g++-multilib', 'valgrind', 'expect', 'curl']
       env:
-        - COMPILER=clang++-6.0
+        - COMPILER=clang++-10
         - COMP=clang
-        - LDFLAGS=-fuse-ld=lld
 
     - os: osx
+      osx_image: xcode12
       compiler: gcc
       env:
         - COMPILER=g++
         - COMP=gcc
 
     - os: osx
+      osx_image: xcode12
       compiler: clang
       env:
-        - COMPILER=clang++ V='Apple LLVM 9.4.1' # Apple LLVM version 9.1.0 (clang-902.0.39.2)
+        - COMPILER=clang++
         - COMP=clang
         - DEPLOY=stockfish-osx
       addons:
@@ -69,44 +68,70 @@ matrix:
             secure: OWJPxKbGK4xyIkHMqUE100hfXLd4QHAQXLaYj5PemcJxT9vbWurrWHCtkIqhikKMgw6ii12JrdGvOd/wT31ZMR3g1xxc5cu0/cRx1zyBNZkGEScVZE6R3Y1Y5Y812xFY98mdq84mGILsS+mlL0HUqv68331kxTnWHLc8h+59wSOviPUzDCmyAarMd+AfHLqEi4QqR5g377TXImKFhSzOvpQtSlK3LH1Kfyl1LlPlVhBGf7jNlECr7GTGy1y89ahMF4ZEYDQED4qD2IbA988FaaN7GYQWQZ9esZ9mVMco+CIfjk/0+3+6K99tqQYFU7MW4w7AVwCnQqMLZZHz7JlCAInRv99fx3G4QHwjaZbTbfNashHKC7qu1Wvvqsim2RSLb+RkEH/cUXT6PcUHL1K/muHypHDYHxyY7dj8M35rTXaDjYypl0hmGxWPLLoqH7jJRXQpW3Z6ho+4ThTAlQZ3qoBMW+Ses53v93clq6Hr9RaVWNHZ2mCnq/6LAHWz19TPVu3QyrP6nhO1XM1/t/zFsvjTe83/Rp/kRxOjUksUjQRpvlHW4OoxjerQQ8Gu+K+fW6hdryPFyO1hpkJpQ0vPOBRuK81HAIN9BRf9CREhdJ4rj1PvYocKk0FqZVaJIHUtW2jwcwtxAIPephLJJvLyhwa6yx0veeSXSQW0domzxnA=
 
 before_script:
-  - pip3 install python-chess
-  - git clone https://github.com/ddugovic/chess-artist.git ./tests/chess-artist --depth 1
   - cd src
 
 script:
+  # Download net
+  - make net
+
   # Obtain bench reference from git log
   - git log HEAD | grep "\b[Bb]ench[ :]\+[0-9]\{7\}" | head -n 1 | sed "s/[^0-9]*\([0-9]*\).*/\1/g" > git_sig
   - export benchref=$(cat git_sig)
   - echo "Reference bench:" $benchref
-  #
+
+  # Compiler version string
+  - $COMPILER -v
+
+  # test help target
+  - make help
+
   # Verify bench number against various builds
   - export CXXFLAGS="-Werror -D_GLIBCXX_DEBUG"
-  - make clean && make -j2 ARCH=x86-64 optimize=no debug=yes build && ../tests/signature.sh $benchref
-  - make clean && make -j2 ARCH=x86-32 optimize=no debug=yes build && ../tests/signature.sh $benchref
-  - make clean && make -j2 ARCH=x86-32 build && ../tests/signature.sh $benchref
+  - make clean && make -j2 ARCH=x86-64-modern optimize=no debug=yes build && ../tests/signature.sh $benchref
+  - export CXXFLAGS="-Werror"
+  - make clean && make -j2 ARCH=x86-64-modern build && ../tests/signature.sh $benchref
+  - make clean && make -j2 ARCH=x86-64-ssse3 build && ../tests/signature.sh $benchref
+  - make clean && make -j2 ARCH=x86-64-sse3-popcnt build && ../tests/signature.sh $benchref
+  - make clean && make -j2 ARCH=x86-64 build && ../tests/signature.sh $benchref
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then make clean && make -j2 ARCH=general-64 build && ../tests/signature.sh $benchref; fi
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then make clean && make -j2 ARCH=x86-32 optimize=no debug=yes build && ../tests/signature.sh $benchref; fi
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then make clean && make -j2 ARCH=x86-32-sse41-popcnt build && ../tests/signature.sh $benchref; fi
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then make clean && make -j2 ARCH=x86-32-sse2 build && ../tests/signature.sh $benchref; fi
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then make clean && make -j2 ARCH=x86-32 build && ../tests/signature.sh $benchref; fi
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then make clean && make -j2 ARCH=general-32 build && ../tests/signature.sh $benchref; fi
+  # workaround: exclude a custom version of llvm+clang, which doesn't find llvm-profdata on ubuntu
+  - if [[ "$TRAVIS_OS_NAME" != "linux" || "$COMP" == "gcc" ]]; then make clean && make -j2 ARCH=x86-64-modern profile-build && ../tests/signature.sh $benchref; fi
+
+  # compile only for some more advanced architectures (might not run in travis)
+  - make clean && make -j2 ARCH=x86-64-avx2 build
+  - make clean && make -j2 ARCH=x86-64-bmi2 build
+  - make clean && make -j2 ARCH=x86-64-avx512 build
+  - make clean && make -j2 ARCH=x86-64-vnni512 build
+  - make clean && make -j2 ARCH=x86-64-vnni256 build
 
   #
   # Check perft and reproducible search
+  - make clean && make -j2 ARCH=x86-64-modern build
   - ../tests/perft.sh
   - ../tests/reprosearch.sh
-  - ../tests/puzzle.sh
+
   #
   # Valgrind
   #
   - export CXXFLAGS="-O1 -fno-inline"
-  - if [ -x "$(command -v valgrind )" ]; then make clean && make -j2 ARCH=x86-64 debug=yes optimize=no build > /dev/null && ../tests/instrumented.sh --valgrind; fi
+  - if [ -x "$(command -v valgrind )" ]; then make clean && make -j2 ARCH=x86-64-modern debug=yes optimize=no build > /dev/null && ../tests/instrumented.sh --valgrind; fi
   - if [ -x "$(command -v valgrind )" ]; then ../tests/instrumented.sh --valgrind-thread; fi
+
   #
   # Sanitizer
   #
-  # Use g++-8 as a proxy for having sanitizers, might need revision as they become available for more recent versions of clang/gcc
-  - if [[ "$COMPILER" == "g++-8" ]]; then make clean && make -j2 ARCH=x86-64 sanitize=undefined optimize=no debug=yes build > /dev/null && ../tests/instrumented.sh --sanitizer-undefined; fi
-  - if [[ "$COMPILER" == "g++-8" ]]; then make clean && make -j2 ARCH=x86-64 sanitize=thread    optimize=no debug=yes build > /dev/null && ../tests/instrumented.sh --sanitizer-thread; fi
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then make clean && make -j2 ARCH=x86-64-modern sanitize=undefined optimize=no debug=yes build > /dev/null && ../tests/instrumented.sh --sanitizer-undefined; fi
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then make clean && make -j2 ARCH=x86-64-modern sanitize=thread    optimize=no debug=yes build > /dev/null && ../tests/instrumented.sh --sanitizer-thread; fi
 
   #
   # Build snapshot
   #
-  - if [[ "${TRAVIS_PULL_REQUEST}" = "false" && "$DEPLOY" == "stockfish" ]]; then make clean && git apply ../deploy/old-gcc.patch && docker build --tag oldstable-slim-for-sf -f ../deploy/oldstable-slim.dockerfile ../deploy && docker run --volume "$PWD/..:/home/builder/Stockfish" --user $(id -u) oldstable-slim-for-sf; fi
+  - if [[ "${TRAVIS_PULL_REQUEST}" = "false" && "$DEPLOY" == "stockfish" ]]; then make clean && git apply ../deploy/old-gcc.patch && docker build --tag stable-slim-for-sf -f ../deploy/stable-slim.dockerfile ../deploy && docker run --volume "$PWD/..:/home/builder/Stockfish" --user $(id -u) stable-slim-for-sf; fi
   - if [[ "${TRAVIS_PULL_REQUEST}" = "false" && "$DEPLOY" == "stockfish-osx" ]]; then make clean && make build ARCH=x86-64 EXE=stockfish-osx-x86_64; fi
 
 deploy:

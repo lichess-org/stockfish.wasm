@@ -1,8 +1,6 @@
 /*
   Stockfish, a UCI chess playing engine derived from Glaurung 2.1
-  Copyright (C) 2004-2008 Tord Romstad (Glaurung author)
-  Copyright (C) 2008-2015 Marco Costalba, Joona Kiiski, Tord Romstad
-  Copyright (C) 2015-2020 Marco Costalba, Joona Kiiski, Gary Linscott, Tord Romstad
+  Copyright (C) 2004-2020 The Stockfish developers (see AUTHORS file)
 
   Stockfish is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -43,7 +41,7 @@ namespace Zobrist {
   Key side, noPawns;
   Key variant[VARIANT_NB];
 #ifdef CRAZYHOUSE
-  Key inHand[PIECE_NB][17];
+  Key inHand[PIECE_NB][16];
 #endif
 #ifdef THREECHECK
   Key checks[COLOR_NB][CHECKS_NB];
@@ -127,7 +125,7 @@ void Position::init() {
 #endif
 #ifdef CRAZYHOUSE
   for (Piece pc : Pieces)
-      for (int n = 0; n < 17; ++n)
+      for (int n = 0; n < 16; ++n)
           Zobrist::inHand[pc][n] = rng.rand<Key>();
 #endif
 
@@ -204,7 +202,6 @@ Position& Position::set(const string& fenStr, bool isChess960, Variant v, StateI
 
   std::memset(this, 0, sizeof(Position));
   std::memset(si, 0, sizeof(StateInfo));
-  std::fill_n(&pieceList[0][0], sizeof(pieceList) / sizeof(Square), SQ_NONE);
   st = si;
   subvar = v;
   var = main_variant(v);
@@ -226,8 +223,7 @@ Position& Position::set(const string& fenStr, bool isChess960, Variant v, StateI
 #endif
       }
 
-      else if ((idx = PieceToChar.find(token)) != string::npos)
-      {
+      else if ((idx = PieceToChar.find(token)) != string::npos) {
           put_piece(Piece(idx), sq);
           ++sq;
       }
@@ -285,9 +281,9 @@ Position& Position::set(const string& fenStr, bool isChess960, Variant v, StateI
       {
           // X-FEN is ambiguous if there are multiple kings
           // Assume the first king on the rank has castling rights
-          const Square* kl = squares<KING>(c);
-          while ((ksq = *kl++) != SQ_NONE)
+          for (Bitboard b = pieces(c, KING); b; )
           {
+              ksq = pop_lsb(&b);
               assert(piece_on(ksq) == make_piece(c, KING));
               if (rank_of(ksq) == rank)
                   break;
@@ -299,9 +295,9 @@ Position& Position::set(const string& fenStr, bool isChess960, Variant v, StateI
       {
           // X-FEN is ambiguous if there are multiple kings
           // Assume the first king on the rank has castling rights
-          const Square* kl = squares<KING>(c);
-          while ((ksq = *kl++) != SQ_NONE)
+          for (Bitboard b = pieces(c, KING); b; )
           {
+              ksq = pop_lsb(&b);
               assert(piece_on(ksq) == make_piece(c, KING));
               if (rank_of(ksq) == rank)
                   break;
@@ -393,6 +389,10 @@ Position& Position::set(const string& fenStr, bool isChess960, Variant v, StateI
   chess960 = isChess960;
   thisThread = th;
   set_state(st);
+#ifdef USE_NNUE
+  st->accumulator.state[WHITE] = Eval::NNUE::INIT;
+  st->accumulator.state[BLACK] = Eval::NNUE::INIT;
+#endif
 
   assert(pos_is_ok());
 
@@ -427,130 +427,83 @@ void Position::set_castling_right(Color c, Square kfrom, Square rfrom) {
 
 void Position::set_check_info(StateInfo* si) const {
 
-#ifdef ANTI
-  if (is_anti())
-  {
-      si->blockersForKing[WHITE] = si->pinners[WHITE] = 0;
-      si->blockersForKing[BLACK] = si->pinners[BLACK] = 0;
-  }
-  else
-#endif
-#ifdef ATOMIC
-  if (is_atomic() && (is_atomic_loss() || kings_adjacent()))
-  {
-      si->blockersForKing[WHITE] = si->pinners[WHITE] = 0;
-      si->blockersForKing[BLACK] = si->pinners[BLACK] = 0;
-  }
-  else
-#endif
-#ifdef EXTINCTION
-  if (is_extinction())
-  {
-      si->blockersForKing[WHITE] = si->pinners[WHITE] = 0;
-      si->blockersForKing[BLACK] = si->pinners[BLACK] = 0;
-  }
-  else
-#endif
-#ifdef GRID
-  if (is_grid())
-  {
-      si->blockersForKing[WHITE] = slider_blockers(pieces(BLACK) & ~grid_bb(square<KING>(WHITE)), square<KING>(WHITE), si->pinners[BLACK]);
-      si->blockersForKing[BLACK] = slider_blockers(pieces(WHITE) & ~grid_bb(square<KING>(BLACK)), square<KING>(BLACK), si->pinners[WHITE]);
-  }
-  else
-#endif
-#ifdef HORDE
-  if (is_horde())
-  {
-      si->blockersForKing[WHITE] = si->pinners[WHITE] = is_horde_color(WHITE)
-          ? 0 : slider_blockers(pieces(BLACK), square<KING>(WHITE), si->pinners[BLACK]);
-      si->blockersForKing[BLACK] = si->pinners[BLACK] = is_horde_color(BLACK)
-          ? 0 : slider_blockers(pieces(WHITE), square<KING>(BLACK), si->pinners[WHITE]);
-  }
-  else
-#endif
 #ifdef PLACEMENT
+  // Unplaced kings (during the placement phase) cannot be checked
   if (is_placement() && count_in_hand<KING>())
   {
       si->blockersForKing[WHITE] = si->pinners[WHITE] = 0;
       si->blockersForKing[BLACK] = si->pinners[BLACK] = 0;
-      si->checkSquares[PAWN]   = 0;
-      si->checkSquares[KNIGHT] = 0;
-      si->checkSquares[BISHOP] = 0;
-      si->checkSquares[ROOK]   = 0;
-      si->checkSquares[QUEEN]  = 0;
-      si->checkSquares[KING]   = 0;
+      for (PieceType pt = PAWN; pt <= KING; ++pt)
+          si->checkSquares[pt] = 0;
       return;
   }
-  else
 #endif
+  switch (var)
   {
+#ifdef ANTI
+  case ANTI_VARIANT:
+      si->blockersForKing[WHITE] = si->pinners[WHITE] = 0;
+      si->blockersForKing[BLACK] = si->pinners[BLACK] = 0;
+      for (PieceType pt = PAWN; pt <= KING; ++pt)
+          si->checkSquares[pt] = 0;
+      return;
+#endif
+#ifdef EXTINCTION
+  case EXTINCTION_VARIANT:
+      si->blockersForKing[WHITE] = si->pinners[WHITE] = 0;
+      si->blockersForKing[BLACK] = si->pinners[BLACK] = 0;
+      for (PieceType pt = PAWN; pt <= KING; ++pt)
+          si->checkSquares[pt] = 0;
+      return;
+#endif
+#ifdef GRID
+  case GRID_VARIANT:
+      si->blockersForKing[WHITE] = slider_blockers(pieces(BLACK) & ~grid_bb(square<KING>(WHITE)), square<KING>(WHITE), si->pinners[BLACK]);
+      si->blockersForKing[BLACK] = slider_blockers(pieces(WHITE) & ~grid_bb(square<KING>(BLACK)), square<KING>(BLACK), si->pinners[WHITE]);
+  break;
+#endif
+#ifdef HORDE
+  case HORDE_VARIANT:
+      si->blockersForKing[WHITE] = si->pinners[WHITE] = is_horde_color(WHITE)
+          ? 0 : slider_blockers(pieces(BLACK), square<KING>(WHITE), si->pinners[BLACK]);
+      si->blockersForKing[BLACK] = si->pinners[BLACK] = is_horde_color(BLACK)
+          ? 0 : slider_blockers(pieces(WHITE), square<KING>(BLACK), si->pinners[WHITE]);
+      if (is_horde_color(~sideToMove)) {
+          for (PieceType pt = PAWN; pt <= KING; ++pt)
+              si->checkSquares[pt] = 0;
+          return;
+      }
+  break;
+#endif
+#ifdef ATOMIC
+  case ATOMIC_VARIANT:
+      if (is_atomic_loss() || kings_adjacent())
+      {
+          si->blockersForKing[WHITE] = si->pinners[WHITE] = 0;
+          si->blockersForKing[BLACK] = si->pinners[BLACK] = 0;
+          for (PieceType pt = PAWN; pt <= KING; ++pt)
+              si->checkSquares[pt] = 0;
+          return;
+      }
+  [[fallthrough]];
+#endif
+  default:
   si->blockersForKing[WHITE] = slider_blockers(pieces(BLACK), square<KING>(WHITE), si->pinners[BLACK]);
   si->blockersForKing[BLACK] = slider_blockers(pieces(WHITE), square<KING>(BLACK), si->pinners[WHITE]);
   }
 
-#ifdef HORDE
-  if (is_horde() && is_horde_color(~sideToMove)) {
-  si->checkSquares[PAWN]   = 0;
-  si->checkSquares[KNIGHT] = 0;
-  si->checkSquares[BISHOP] = 0;
-  si->checkSquares[ROOK]   = 0;
-  si->checkSquares[QUEEN]  = 0;
-  si->checkSquares[KING]   = 0;
-  return;
-  }
-#endif
   Square ksq = square<KING>(~sideToMove);
 
-#ifdef ANTI
-  if (is_anti()) { // There are no checks in antichess
-  si->checkSquares[PAWN]   = 0;
-  si->checkSquares[KNIGHT] = 0;
-  si->checkSquares[BISHOP] = 0;
-  si->checkSquares[ROOK]   = 0;
-  si->checkSquares[QUEEN]  = 0;
-  si->checkSquares[KING]   = 0;
-  return;
-  }
-#endif
-#ifdef EXTINCTION
-  if (is_extinction()) {
-  si->checkSquares[PAWN]   = 0;
-  si->checkSquares[KNIGHT] = 0;
-  si->checkSquares[BISHOP] = 0;
-  si->checkSquares[ROOK]   = 0;
-  si->checkSquares[QUEEN]  = 0;
-  si->checkSquares[KING]   = 0;
-  return;
-  }
-#endif
-#ifdef GRID
-  if (is_grid()) {
-  si->checkSquares[PAWN]   = pawn_attacks_bb(~sideToMove, ksq) & ~grid_bb(ksq);
-  si->checkSquares[KNIGHT] = attacks_bb<KNIGHT>(ksq) & ~grid_bb(ksq);
-  si->checkSquares[BISHOP] = attacks_bb<BISHOP>(ksq) & ~grid_bb(ksq);
-  si->checkSquares[ROOK]   = attacks_bb<ROOK>(ksq) & ~grid_bb(ksq);
-  si->checkSquares[QUEEN]  = (si->checkSquares[BISHOP] | si->checkSquares[ROOK]) & ~grid_bb(ksq);
-  si->checkSquares[KING]   = 0;
-  return;
-  }
-#endif
-#ifdef ATOMIC
-  if (is_atomic() && ksq == SQ_NONE) {
-  si->checkSquares[PAWN]   = 0;
-  si->checkSquares[KNIGHT] = 0;
-  si->checkSquares[BISHOP] = 0;
-  si->checkSquares[ROOK]   = 0;
-  si->checkSquares[QUEEN]  = 0;
-  si->checkSquares[KING]   = 0;
-  return;
-  }
-#endif
   si->checkSquares[PAWN]   = pawn_attacks_bb(~sideToMove, ksq);
   si->checkSquares[KNIGHT] = attacks_bb<KNIGHT>(ksq);
   si->checkSquares[BISHOP] = attacks_bb<BISHOP>(ksq, pieces());
   si->checkSquares[ROOK]   = attacks_bb<ROOK>(ksq, pieces());
   si->checkSquares[QUEEN]  = si->checkSquares[BISHOP] | si->checkSquares[ROOK];
+#ifdef GRID
+  if (is_grid())
+      for (PieceType pt = PAWN; pt <= QUEEN; ++pt)
+          si->checkSquares[pt] &= ~grid_bb(ksq);
+#endif
 #ifdef TWOKINGS
   if (is_two_kings())
       si->checkSquares[KING] = attacks_bb<KING>(ksq);
@@ -641,7 +594,8 @@ void Position::set_state(StateInfo* si) const {
       {
           if (type_of(pc) != PAWN && type_of(pc) != KING)
               si->nonPawnMaterial[color_of(pc)] += pieceCountInHand[color_of(pc)][type_of(pc)] * PieceValue[CHESS_VARIANT][MG][pc];
-          si->key ^= Zobrist::inHand[pc][pieceCountInHand[color_of(pc)][type_of(pc)]];
+          for (int cnt = 0; cnt < pieceCountInHand[color_of(pc)][type_of(pc)]; ++cnt)
+              si->key ^= Zobrist::inHand[pc][cnt];
       }
 #endif
   }
@@ -1490,6 +1444,14 @@ void Position::do_move(Move m, StateInfo& newSt, bool givesCheck) {
   ++st->rule50;
   ++st->pliesFromNull;
 
+  // Used by NNUE
+#ifdef USE_NNUE
+  st->accumulator.state[WHITE] = Eval::NNUE::EMPTY;
+  st->accumulator.state[BLACK] = Eval::NNUE::EMPTY;
+  auto& dp = st->dirtyPiece;
+  dp.dirty_num = 1;
+#endif
+
   Color us = sideToMove;
   Color them = ~us;
   Square from = from_sq(m);
@@ -1574,6 +1536,16 @@ void Position::do_move(Move m, StateInfo& newSt, bool givesCheck) {
 #endif
       }
 
+#ifdef USE_NNUE
+      if (Eval::useNNUE)
+      {
+          dp.dirty_num = 2;  // 1 piece moved, 1 piece captured
+          dp.piece[1] = captured;
+          dp.from[1] = capsq;
+          dp.to[1] = SQ_NONE;
+      }
+#endif
+
       // Update board and piece lists
       remove_piece(capsq);
 #ifdef CRAZYHOUSE
@@ -1589,8 +1561,7 @@ void Position::do_move(Move m, StateInfo& newSt, bool givesCheck) {
           {
               Piece add = is_promoted(capsq) ? make_piece(~color_of(captured), PAWN) : ~captured;
               add_to_hand(color_of(add), type_of(add));
-              k ^= Zobrist::inHand[add][pieceCountInHand[color_of(add)][type_of(add)] - 1]
-                  ^ Zobrist::inHand[add][pieceCountInHand[color_of(add)][type_of(add)]];
+              k ^= Zobrist::inHand[add][pieceCountInHand[color_of(add)][type_of(add)] - 1];
           }
           promotedPieces -= capsq;
       }
@@ -1648,8 +1619,7 @@ void Position::do_move(Move m, StateInfo& newSt, bool givesCheck) {
   // Update hash key
 #ifdef CRAZYHOUSE
   if (is_house() && type_of(m) == DROP)
-      k ^=  Zobrist::psq[pc][to] ^ Zobrist::inHand[pc][pieceCountInHand[color_of(pc)][type_of(pc)] - 1]
-          ^ Zobrist::inHand[pc][pieceCountInHand[color_of(pc)][type_of(pc)]];
+      k ^=  Zobrist::psq[pc][to] ^ Zobrist::inHand[pc][pieceCountInHand[color_of(pc)][type_of(pc)] - 1];
   else
 #endif
   k ^= Zobrist::psq[pc][from] ^ Zobrist::psq[pc][to];
@@ -1691,17 +1661,6 @@ void Position::do_move(Move m, StateInfo& newSt, bool givesCheck) {
   }
 #endif
 
-#ifdef ATOMIC
-  if (is_atomic() && captured) // Remove the blast piece(s)
-  {
-      remove_piece(from);
-      // Update material (hash key already updated)
-      st->materialKey ^= Zobrist::psq[pc][pieceCount[pc]];
-      if (type_of(pc) != PAWN)
-          st->nonPawnMaterial[us] -= PieceValue[CHESS_VARIANT][MG][type_of(pc)];
-  }
-  else
-#endif
   // Move the piece. The tricky Chess960 castling is handled earlier
 #ifdef CRAZYHOUSE
   if (is_house() && type_of(m) == DROP)
@@ -1727,7 +1686,29 @@ void Position::do_move(Move m, StateInfo& newSt, bool givesCheck) {
   else
 #endif
   if (type_of(m) != CASTLING)
+  {
+#ifdef USE_NNUE
+      if (Eval::useNNUE)
+      {
+          dp.piece[0] = pc;
+          dp.from[0] = from;
+          dp.to[0] = to;
+      }
+#endif
+
+#ifdef ATOMIC
+      if (is_atomic() && captured) // Remove the blast piece(s)
+      {
+          remove_piece(from);
+          // Update material (hash key already updated)
+          st->materialKey ^= Zobrist::psq[pc][pieceCount[pc]];
+          if (type_of(pc) != PAWN)
+              st->nonPawnMaterial[us] -= PieceValue[CHESS_VARIANT][MG][type_of(pc)];
+      }
+      else
+#endif
       move_piece(from, to);
+  }
 
   // If the moving piece is a pawn do some special extra work
   if (type_of(pc) == PAWN)
@@ -1778,6 +1759,18 @@ void Position::do_move(Move m, StateInfo& newSt, bool givesCheck) {
           if (is_house())
 #endif
               promotedPieces |= to;
+#endif
+
+#ifdef USE_NNUE
+          if (Eval::useNNUE)
+          {
+              // Promoting pawn to SQ_NONE, promoted piece from SQ_NONE
+              dp.to[0] = SQ_NONE;
+              dp.piece[dp.dirty_num] = promotion;
+              dp.from[dp.dirty_num] = SQ_NONE;
+              dp.to[dp.dirty_num] = to;
+              dp.dirty_num++;
+          }
 #endif
 
           // Update hash keys
@@ -2037,6 +2030,20 @@ void Position::do_castling(Color us, Square from, Square& to, Square& rfrom, Squ
   rto = relative_square(us, kingSide ? SQ_F1 : SQ_D1);
   to = relative_square(us, kingSide ? SQ_G1 : SQ_C1);
 
+#ifdef USE_NNUE
+  if (Do && Eval::useNNUE)
+  {
+      auto& dp = st->dirtyPiece;
+      dp.piece[0] = make_piece(us, KING);
+      dp.from[0] = from;
+      dp.to[0] = to;
+      dp.piece[1] = make_piece(us, ROOK);
+      dp.from[1] = rfrom;
+      dp.to[1] = rto;
+      dp.dirty_num = 2;
+  }
+#endif
+
   // Remove both pieces first since squares could overlap in Chess960
   remove_piece(Do ? from : to);
   remove_piece(Do ? rfrom : rto);
@@ -2057,9 +2064,21 @@ void Position::do_null_move(StateInfo& newSt) {
   assert(!(is_anti() && can_capture()));
 #endif
 
+#ifdef USE_NNUE
+  std::memcpy(&newSt, st, offsetof(StateInfo, accumulator));
+#else
   std::memcpy(&newSt, st, sizeof(StateInfo));
+#endif
+
   newSt.previous = st;
   st = &newSt;
+
+#ifdef USE_NNUE
+  st->dirtyPiece.dirty_num = 0;
+  st->dirtyPiece.piece[0] = NO_PIECE; // Avoid checks in UpdateAccumulator()
+  st->accumulator.state[WHITE] = Eval::NNUE::EMPTY;
+  st->accumulator.state[BLACK] = Eval::NNUE::EMPTY;
+#endif
 
   if (st->epSquare != SQ_NONE)
   {
@@ -2127,16 +2146,14 @@ Key Position::key_after(Move m) const {
       if (is_house())
       {
           Piece add = is_promoted(to) ? make_piece(~color_of(captured), PAWN) : ~captured;
-          k ^= Zobrist::inHand[add][pieceCountInHand[color_of(add)][type_of(add)] + 1]
-              ^ Zobrist::inHand[add][pieceCountInHand[color_of(add)][type_of(add)]];
+          k ^= Zobrist::inHand[add][pieceCountInHand[color_of(add)][type_of(add)]];
       }
 #endif
   }
 
 #ifdef CRAZYHOUSE
   if (is_house() && type_of(m) == DROP)
-      return k ^ Zobrist::psq[pc][to] ^ Zobrist::inHand[pc][pieceCountInHand[color_of(pc)][type_of(pc)]]
-            ^ Zobrist::inHand[pc][pieceCountInHand[color_of(pc)][type_of(pc)] - 1];
+      return k ^ Zobrist::psq[pc][to] ^ Zobrist::inHand[pc][pieceCountInHand[color_of(pc)][type_of(pc)] - 1];
 #endif
   return k ^ Zobrist::psq[pc][to] ^ Zobrist::psq[pc][from];
 }
@@ -2205,12 +2222,12 @@ bool Position::see_ge(Move m, Value threshold) const {
           return false;
 
       Bitboard occupied = pieces() ^ from;
-      Bitboard stmAttackers = attackers_to(to, occupied) & occupied & pieces(stm) & ~pieces(KING);
+      Bitboard attackers = attackers_to(to, occupied) & occupied & pieces(~stm) & ~pieces(KING);
 
       // Loop over attacking pieces
-      while (stmAttackers)
+      while (attackers)
       {
-          Square s = pop_lsb(&stmAttackers);
+          Square s = pop_lsb(&attackers);
           if (see<ATOMIC_VARIANT>(m, nextVictim, s) < threshold)
               return false;
       }
@@ -2275,8 +2292,8 @@ bool Position::see_ge(Move m, Value threshold) const {
 
       // Don't allow pinned pieces to attack (except the king) as long as
       // there are pinners on their original square.
-      if (st->pinners[~stm] & occupied)
-          stmAttackers &= ~st->blockersForKing[stm];
+      if (pinners(~stm) & occupied)
+          stmAttackers &= ~blockers_for_king(stm);
 #ifdef RACE
       // Exclude checks in racing kings
       if (is_race())
@@ -2681,6 +2698,10 @@ bool Position::pos_is_ok() const {
               assert(0 && "pos_is_ok: Bitboards");
 
   StateInfo si = *st;
+#ifdef USE_NNUE
+  ASSERT_ALIGNED(&si, Eval::NNUE::kCacheLineSize);
+#endif
+
   set_state(&si);
   if (std::memcmp(&si, st, sizeof(StateInfo)))
       assert(0 && "pos_is_ok: State");
@@ -2698,15 +2719,9 @@ bool Position::pos_is_ok() const {
 #endif
 
   for (Piece pc : Pieces)
-  {
       if (   pieceCount[pc] != popcount(pieces(color_of(pc), type_of(pc)))
           || pieceCount[pc] != std::count(board, board + SQUARE_NB, pc))
           assert(0 && "pos_is_ok: Pieces");
-
-      for (int i = 0; i < pieceCount[pc]; ++i)
-          if (board[pieceList[pc][i]] != pc || index[pieceList[pc][i]] != i)
-              assert(0 && "pos_is_ok: Index");
-  }
 
   for (Color c : { WHITE, BLACK })
       for (CastlingRights cr : {c & KING_SIDE, c & QUEEN_SIDE})

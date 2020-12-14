@@ -16,38 +16,25 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <iostream>
+// Class for difference calculation of NNUE evaluation function
 
-#include "bitboard.h"
-#include "endgame.h"
-#include "position.h"
-#include "search.h"
-#include "thread.h"
-#include "tt.h"
-#include "uci.h"
+#ifndef NNUE_ACCUMULATOR_H_INCLUDED
+#define NNUE_ACCUMULATOR_H_INCLUDED
 
-namespace PSQT {
-  void init();
-}
+#include "nnue_architecture.h"
 
-int main(int argc, char* argv[]) {
+namespace Eval::NNUE {
 
-  std::cout << engine_info() << std::endl;
+  // The accumulator of a StateInfo without parent is set to the INIT state
+  enum AccumulatorState { EMPTY, COMPUTED, INIT };
 
-  CommandLine::init(argc, argv);
-  UCI::init(Options);
-  Tune::init();
-  PSQT::init();
-  Bitboards::init();
-  Position::init();
-  Bitbases::init();
-  Endgames::init();
-  Threads.set(size_t(Options["Threads"]));
-  TT.resize(Options["Hash"]); // After threads are up
-  Search::clear(); // After threads are up
-#ifdef USE_NNUE
-  Eval::NNUE::init();
-#endif
+  // Class that holds the result of affine transformation of input features
+  struct alignas(kCacheLineSize) Accumulator {
+    std::int16_t
+        accumulation[2][kRefreshTriggers.size()][kTransformedFeatureDimensions];
+    AccumulatorState state[2];
+  };
 
-  return 0;
-}
+}  // namespace Eval::NNUE
+
+#endif // NNUE_ACCUMULATOR_H_INCLUDED

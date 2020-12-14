@@ -1,8 +1,6 @@
 /*
   Stockfish, a UCI chess playing engine derived from Glaurung 2.1
-  Copyright (C) 2004-2008 Tord Romstad (Glaurung author)
-  Copyright (C) 2008-2015 Marco Costalba, Joona Kiiski, Tord Romstad
-  Copyright (C) 2015-2020 Marco Costalba, Joona Kiiski, Gary Linscott, Tord Romstad
+  Copyright (C) 2004-2020 The Stockfish developers (see AUTHORS file)
 
   Stockfish is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -582,8 +580,8 @@ ScaleFactor Endgame<CHESS_VARIANT, KRPPKRP>::operator()(const Position& pos) con
   assert(verify_material(pos, strongSide, RookValueMg, 2));
   assert(verify_material(pos, weakSide,   RookValueMg, 1));
 
-  Square strongPawn1 = pos.squares<PAWN>(strongSide)[0];
-  Square strongPawn2 = pos.squares<PAWN>(strongSide)[1];
+  Square strongPawn1 = lsb(pos.pieces(strongSide, PAWN));
+  Square strongPawn2 = msb(pos.pieces(strongSide, PAWN));
   Square weakKing = pos.square<KING>(weakSide);
 
   // Does the stronger side have a passed pawn?
@@ -670,8 +668,8 @@ ScaleFactor Endgame<CHESS_VARIANT, KBPPKB>::operator()(const Position& pos) cons
       return SCALE_FACTOR_NONE;
 
   Square weakKing = pos.square<KING>(weakSide);
-  Square strongPawn1 = pos.squares<PAWN>(strongSide)[0];
-  Square strongPawn2 = pos.squares<PAWN>(strongSide)[1];
+  Square strongPawn1 = lsb(pos.pieces(strongSide, PAWN));
+  Square strongPawn2 = msb(pos.pieces(strongSide, PAWN));
   Square blockSq1, blockSq2;
 
   if (relative_rank(strongSide, strongPawn1) > relative_rank(strongSide, strongPawn2))

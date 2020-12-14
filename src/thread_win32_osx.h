@@ -1,8 +1,6 @@
 /*
   Stockfish, a UCI chess playing engine derived from Glaurung 2.1
-  Copyright (C) 2004-2008 Tord Romstad (Glaurung author)
-  Copyright (C) 2008-2015 Marco Costalba, Joona Kiiski, Tord Romstad
-  Copyright (C) 2015-2020 Marco Costalba, Joona Kiiski, Gary Linscott, Tord Romstad
+  Copyright (C) 2004-2020 The Stockfish developers (see AUTHORS file)
 
   Stockfish is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -32,7 +30,7 @@
 /// stockfish.wasm: Given that there is no Syzygy support, and assuming maximum
 /// search depth 99, we use 1MB instead.
 
-#if defined(__APPLE__) || defined(__MINGW32__) || defined(__MINGW64__) || defined(__EMSCRIPTEN__)
+#if defined(__APPLE__) || defined(__MINGW32__) || defined(__MINGW64__) || defined(USE_PTHREADS) || defined(__EMSCRIPTEN__)
 
 #include <pthread.h>
 
