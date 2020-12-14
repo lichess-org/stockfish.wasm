@@ -94,12 +94,13 @@ Current limitations
 * Can hang when UCI protocol is misused. (Do not send invalid commands or
   positions. While the engine is searching, do not change options or start
   additional searches).
+* No NNUE support.
 * No Syzygy tablebase support.
 
 Building
 --------
 
-Assuming [em++](https://github.com/kripken/emscripten) (`^1.39.20`) is available:
+Assuming [em++](https://github.com/kripken/emscripten) (`^2.0.10`) is available:
 
 ```
 npm run-script prepare
