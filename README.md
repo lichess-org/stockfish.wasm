@@ -89,8 +89,12 @@ function wasmThreadsSupported() {
 Current limitations
 -------------------
 
-* Hashtable: 512 MB.
-* Threads: 16.
+* Hashtable: 1024 MB. You may want to check
+  [`navigator.deviceMemory`](https://developer.mozilla.org/en-US/docs/Web/API/Navigator/deviceMemory)
+  before allocating.
+* Threads: 32. You may want to check
+  [`navigator.hardwareConcurrency`](https://developer.mozilla.org/en-US/docs/Web/API/NavigatorConcurrentHardware/hardwareConcurrency).
+  May be capped lower (e.g., `dom.workers.maxPerDomain` in Firefox).
 * Can hang when UCI protocol is misused. (Do not send invalid commands or
   positions. While the engine is searching, do not change options or start
   additional searches).
