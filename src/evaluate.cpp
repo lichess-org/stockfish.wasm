@@ -1,6 +1,6 @@
 /*
   Stockfish, a UCI chess playing engine derived from Glaurung 2.1
-  Copyright (C) 2004-2020 The Stockfish developers (see AUTHORS file)
+  Copyright (C) 2004-2021 The Stockfish developers (see AUTHORS file)
 
   Stockfish is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -191,7 +191,42 @@ using namespace Trace;
 namespace {
 
   // Threshold for lazy and space evaluation
-  constexpr Value LazyThreshold1 =  Value(1565);
+  constexpr Value LazyThreshold1[VARIANT_NB] = {
+    Value(1565),
+#ifdef ANTI
+    2 * MidgameLimit,
+#endif
+#ifdef ATOMIC
+    Value(1547),
+#endif
+#ifdef CRAZYHOUSE
+    2 * MidgameLimit,
+#endif
+#ifdef EXTINCTION
+    Value(1565),
+#endif
+#ifdef GRID
+    Value(1565),
+#endif
+#ifdef HORDE
+    2 * MidgameLimit,
+#endif
+#ifdef KOTH
+    Value(1565),
+#endif
+#ifdef LOSERS
+    2 * MidgameLimit,
+#endif
+#ifdef RACE
+    2 * MidgameLimit,
+#endif
+#ifdef THREECHECK
+    Value(1529),
+#endif
+#ifdef TWOKINGS
+    Value(1565),
+#endif
+  };
   constexpr Value LazyThreshold2 =  Value(1102);
   constexpr Value SpaceThreshold[VARIANT_NB] = {
     Value(11551),
@@ -265,7 +300,7 @@ namespace {
     {},
 #endif
 #ifdef THREECHECK
-    { 0, 0, 115, 64, 62, 35 },
+    { 0, 0, 118, 66, 62, 35 },
 #endif
 #ifdef TWOKINGS
     { 0, 0, 77, 55, 44, 10 },
@@ -303,7 +338,7 @@ namespace {
     {     0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0 },
 #endif
 #ifdef THREECHECK
-    {   136,  106,   98,   85,    3, -613, -100,   -7,   -4,   37,  181 },
+    {   203,  149,  101,   72,    3, -787,  -91,   -6,   -4,   38,  192 },
 #endif
 #ifdef TWOKINGS
     {   155,  136,   98,   92,    3, -967, -100,   -8,   -4,   37,    0 },
@@ -315,10 +350,6 @@ namespace {
   constexpr int SafeCheck[][2] = {
       {}, {450, 900}, {803, 1292}, {639, 974}, {1087, 1878}, {759, 1132}
   };
-#ifdef THREECHECK
-  // In Q8 fixed point
-  constexpr int ThreeCheckKSFactors[CHECKS_NB] = { 573, 581, 856, 0 };
-#endif
 
 #define S(mg, eg) make_score(mg, eg)
 
@@ -532,7 +563,7 @@ namespace {
   // BishopPawns[distance from edge] contains a file-dependent penalty for pawns on
   // squares of the same color as our bishop.
   constexpr Score BishopPawns[int(FILE_NB) / 2] = {
-    S(3, 8), S(3, 9), S(1, 8), S(3, 7)
+    S(3, 8), S(3, 9), S(2, 8), S(3, 8)
   };
 
   // KingProtector[knight/bishop] contains penalty for each distance unit to own king
@@ -540,12 +571,12 @@ namespace {
 
   // Outpost[knight/bishop] contains bonuses for each knight or bishop occupying a
   // pawn protected square on rank 4 to 6 which is also safe from a pawn attack.
-  constexpr Score Outpost[] = { S(56, 34), S(31, 23) };
+  constexpr Score Outpost[] = { S(57, 38), S(31, 24) };
 
   // PassedRank[Rank] contains a bonus according to the rank of a passed pawn
   constexpr Score PassedRank[VARIANT_NB][RANK_NB] = {
     {
-    S(0, 0), S(9, 28), S(15, 31), S(17, 39), S(64, 70), S(171, 177), S(277, 260)
+    S(0, 0), S(7, 27), S(16, 32), S(17, 40), S(64, 71), S(170, 174), S(278, 262)
     },
 #ifdef ANTI
     { S(0, 0), S(5, 7), S(5, 14), S(31, 38), S(73, 73), S(166, 166), S(252, 252) },
@@ -583,7 +614,7 @@ namespace {
   };
 
   constexpr Score RookOnClosedFile = S(10, 5);
-  constexpr Score RookOnOpenFile[] = { S(19, 7), S(48, 27) };
+  constexpr Score RookOnOpenFile[] = { S(19, 6), S(47, 26) };
 
   // ThreatByMinor/ByRook[attacked PieceType] contains bonuses according to
   // which piece type attacks which one. Attacks on lesser pieces which are
@@ -598,19 +629,11 @@ namespace {
 
   // Assorted bonuses and penalties
 #ifdef ATOMIC
-  constexpr Score AtomicConfinedKing = S(100, 100);
-  constexpr Score ThreatByBlast = S(80, 80);
+  constexpr Score AtomicConfinedKing = S(104, 97);
+  constexpr Score ThreatByBlast      = S( 84, 78);
 #endif
 #ifdef HORDE
   constexpr Score HordeShelter = S(71, 61);
-#endif
-#ifdef THREECHECK
-  constexpr Score ChecksGivenBonus[CHECKS_NB] = {
-      S(0, 0),
-      S(444, 181),
-      S(2425, 603),
-      S(0, 0)
-  };
 #endif
 #ifdef KOTH
   constexpr Score KothDistanceBonus[6] = {
@@ -657,7 +680,7 @@ namespace {
     S( 1614,  1456), S( 975,  885), S( 528,  502), S(   0,    0)
   };
 #endif
-  constexpr Score BadOutpost          = S( -7, 36);
+  constexpr Score UncontestedOutpost  = S(  1, 10);
   constexpr Score BishopOnKingRing    = S( 24,  0);
   constexpr Score BishopXRayPawns     = S(  4,  5);
   constexpr Score CorneredBishop      = S( 50, 50);
@@ -726,6 +749,7 @@ namespace {
     explicit Evaluation(const Position& p) : pos(p) {}
     Evaluation& operator=(const Evaluation&) = delete;
     Value value();
+    Value variantValue(Value v);
 
   private:
     template<Color Us> void initialize();
@@ -960,7 +984,7 @@ namespace {
         if (Pt == BISHOP || Pt == KNIGHT)
         {
             // Bonus if the piece is on an outpost square or can reach one
-            // Reduced bonus for knights (BadOutpost) if few relevant targets
+            // Bonus for knights (UncontestedOutpost) if few relevant targets
             bb = OutpostRanks & (attackedBy[Us][PAWN] | shift<Down>(pos.pieces(PAWN)))
                               & ~pe->pawn_attacks_span(Them);
             Bitboard targets = pos.pieces(Them) & ~pos.pieces(PAWN);
@@ -969,7 +993,7 @@ namespace {
                 && bb & s & ~CenterFiles // on a side outpost
                 && !(b & targets)        // no relevant attacks
                 && (!more_than_one(targets & (s & QueenSide ? QueenSide : KingSide))))
-                score += BadOutpost;
+                score += UncontestedOutpost * popcount(pos.pieces(PAWN) & (s & QueenSide ? QueenSide : KingSide));
             else if (bb & s)
                 score += Outpost[Pt == BISHOP];
             else if (Pt == KNIGHT && bb & b & ~pos.pieces(Us))
@@ -1122,11 +1146,6 @@ namespace {
     Bitboard dqko = ~attackedBy2[Us] & (attackedBy[Us][QUEEN] | attackedBy[Us][KING]);
     Bitboard dropSafe = (safe | (attackedBy[Them][ALL_PIECES] & dqko)) & ~pos.pieces(Us);
 
-#ifdef THREECHECK
-    if (pos.is_three_check() && pos.checks_given(Them))
-        safe = ~pos.pieces(Them);
-#endif
-
     // Enemy rooks checks
 #ifdef CRAZYHOUSE
     h = pos.is_house() && pos.count_in_hand<ROOK>(Them) ? ~pos.pieces() : 0;
@@ -1186,7 +1205,19 @@ namespace {
 #endif
 #ifdef RACE
     if (pos.is_race())
+    {
         kingDanger = -kingDanger;
+        int s = relative_rank(BLACK, ksq);
+        Bitboard b = file_bb(ksq);
+        for (Rank kr = rank_of(ksq), r = Rank(kr + 1); r <= RANK_8; ++r)
+        {
+            // Pinned piece attacks are not included in attackedBy
+            b |= shift<EAST>(b) | shift<WEST>(b);
+            if (!(rank_bb(r) & b & ~attackedBy[Them][ALL_PIECES]))
+                s++;
+        }
+        score += KingRaceBonus[std::min(s, 7)];
+    }
 #endif
 
     // Find the squares that opponent attacks in our king flank, the squares
@@ -1227,19 +1258,11 @@ namespace {
     // Transform the kingDanger units into a Score, and subtract it from the evaluation
     if (kingDanger > 100)
     {
-#ifdef THREECHECK
-        if (pos.is_three_check())
-            kingDanger = ThreeCheckKSFactors[pos.checks_given(Them)] * kingDanger / 256;
-#endif
         int v = kingDanger * kingDanger / 4096;
 #ifdef CRAZYHOUSE
         if (pos.is_house() && Us == pos.side_to_move())
             v -= v / 10;
         if (pos.is_house())
-            v = std::min(v, (int)QueenValueMg);
-#endif
-#ifdef THREECHECK
-        if (pos.is_three_check())
             v = std::min(v, (int)QueenValueMg);
 #endif
         score -= make_score(v, kingDanger / 16 + KDP[10] * v / 256);
@@ -1272,103 +1295,18 @@ namespace {
     Bitboard b, weak, defended, nonPawnEnemies, stronglyProtected, safe;
     Score score = SCORE_ZERO;
 #ifdef ANTI
-    if (pos.is_anti())
-    {
-        constexpr Bitboard TRank2BB = (Us == WHITE ? Rank2BB : Rank7BB);
-        bool weCapture = attackedBy[Us][ALL_PIECES] & pos.pieces(Them);
-        bool theyCapture = attackedBy[Them][ALL_PIECES] & pos.pieces(Us);
-
-        // Penalties for possible captures
-        if (weCapture)
-        {
-            // Penalty if we only attack unprotected pieces
-            bool theyDefended = attackedBy[Us][ALL_PIECES] & pos.pieces(Them) & attackedBy[Them][ALL_PIECES];
-            for (PieceType pt = PAWN; pt <= KING; ++pt)
-            {
-                if (attackedBy[Us][pt] & pos.pieces(Them) & ~attackedBy2[Us])
-                    score -= AttacksAnti[theyCapture][theyDefended][pt];
-                else if (attackedBy[Us][pt] & pos.pieces(Them))
-                    score -= AttacksAnti[theyCapture][theyDefended][NO_PIECE_TYPE];
-            }
-            // If both colors attack pieces, increase penalty with piece count
-            if (theyCapture)
-                score -= PieceCountAnti * pos.count<ALL_PIECES>(Us);
-        }
-        // Bonus if we threaten to force captures (ignoring possible discoveries)
-        if (!weCapture || theyCapture)
-        {
-            b = pos.pieces(Us, PAWN);
-            Bitboard pawnPushes = shift<Up>(b | (shift<Up>(b & TRank2BB) & ~pos.pieces())) & ~pos.pieces();
-            Bitboard pieceMoves = (attackedBy[Us][KNIGHT] | attackedBy[Us][BISHOP] | attackedBy[Us][ROOK]
-                                 | attackedBy[Us][QUEEN] | attackedBy[Us][KING]) & ~pos.pieces();
-            Bitboard unprotectedPawnPushes = pawnPushes & ~attackedBy[Us][ALL_PIECES];
-            Bitboard unprotectedPieceMoves = pieceMoves & ~attackedBy2[Us];
-
-            score += ThreatsAnti[0] * popcount(attackedBy[Them][ALL_PIECES] & (pawnPushes | pieceMoves));
-            score += ThreatsAnti[1] * popcount(attackedBy[Them][ALL_PIECES] & (unprotectedPawnPushes | unprotectedPieceMoves));
-        }
-    }
-    else
+    if (pos.is_anti()) {} else
+#endif
+#ifdef ATOMIC
+    if (pos.is_atomic()) {} else
 #endif
 #ifdef GRID
     if (pos.is_grid()) {} else
 #endif
 #ifdef LOSERS
-    if (pos.is_losers())
-    {
-        constexpr Bitboard TRank2BB = (Us == WHITE ? Rank2BB : Rank7BB);
-        bool weCapture = attackedBy[Us][ALL_PIECES] & pos.pieces(Them);
-        bool theyCapture = attackedBy[Them][ALL_PIECES] & pos.pieces(Us);
-
-        // Penalties for possible captures
-        if (weCapture)
-        {
-            // Penalty if we only attack unprotected pieces
-            bool theyDefended = attackedBy[Us][ALL_PIECES] & pos.pieces(Them) & attackedBy[Them][ALL_PIECES];
-            for (PieceType pt = PAWN; pt <= KING; ++pt)
-            {
-                if (attackedBy[Us][pt] & pos.pieces(Them) & ~attackedBy2[Us])
-                    score -= AttacksLosers[theyCapture][theyDefended][pt];
-                else if (attackedBy[Us][pt] & pos.pieces(Them))
-                    score -= AttacksLosers[theyCapture][theyDefended][NO_PIECE_TYPE];
-            }
-        }
-        // Bonus if we threaten to force captures (ignoring possible discoveries)
-        if (!weCapture || theyCapture)
-        {
-            b = pos.pieces(Us, PAWN);
-            Bitboard pawnPushes = shift<Up>(b | (shift<Up>(b & TRank2BB) & ~pos.pieces())) & ~pos.pieces();
-            Bitboard pieceMoves = (attackedBy[Us][KNIGHT] | attackedBy[Us][BISHOP] | attackedBy[Us][ROOK]
-                                 | attackedBy[Us][QUEEN] | attackedBy[Us][KING]) & ~pos.pieces();
-            Bitboard unprotectedPawnPushes = pawnPushes & ~attackedBy[Us][ALL_PIECES];
-            Bitboard unprotectedPieceMoves = pieceMoves & ~attackedBy2[Us];
-
-            score += ThreatsLosers[0] * popcount(attackedBy[Them][ALL_PIECES] & (pawnPushes | pieceMoves));
-            score += ThreatsLosers[1] * popcount(attackedBy[Them][ALL_PIECES] & (unprotectedPawnPushes | unprotectedPieceMoves));
-        }
-    }
-    else
+    if (pos.is_losers()) {} else
 #endif
-    switch (pos.variant())
     {
-#ifdef ATOMIC
-    case ATOMIC_VARIANT:
-        b = pos.pieces(Them) & attackedBy[Us][ALL_PIECES] & ~attackedBy[Us][KING];
-        while (b)
-        {
-            Square s = pop_lsb(&b);
-            Bitboard blast = (attacks_bb<KING>(s) & (pos.pieces() ^ pos.pieces(PAWN))) | s;
-            int count = popcount(blast & pos.pieces(Them)) - popcount(blast & pos.pieces(Us)) - 1;
-            if (blast & pos.pieces(Them, KING, QUEEN))
-                count++;
-            if ((blast & pos.pieces(Us, QUEEN)) || ((attackedBy[Us][QUEEN] & s) & ~attackedBy2[Us]))
-                count--;
-            score += std::max(SCORE_ZERO, ThreatByBlast * count);
-        }
-    break;
-#endif
-    default:
-
     // Non-pawn enemies
     nonPawnEnemies = pos.pieces(Them) & ~pos.pieces(PAWN);
 
@@ -1553,14 +1491,16 @@ namespace {
                 bb = forward_file_bb(Them, s) & pos.pieces(ROOK, QUEEN);
 
                 if (!(pos.pieces(Them) & bb))
-                    unsafeSquares &= attackedBy[Them][ALL_PIECES];
+                    unsafeSquares &= attackedBy[Them][ALL_PIECES] | pos.pieces(Them);
 
-                // If there are no enemy attacks on passed pawn span, assign a big bonus.
+                // If there are no enemy pieces or attacks on passed pawn span, assign a big bonus.
+                // Or if there is some, but they are all attacked by our pawns, assign a bit smaller bonus.
                 // Otherwise assign a smaller bonus if the path to queen is not attacked
                 // and even smaller bonus if it is attacked but block square is not.
-                int k = !unsafeSquares                    ? 35 :
-                        !(unsafeSquares & squaresToQueen) ? 20 :
-                        !(unsafeSquares & blockSq)        ?  9 :
+                int k = !unsafeSquares                    ? 36 :
+                !(unsafeSquares & ~attackedBy[Us][PAWN])  ? 30 :
+                        !(unsafeSquares & squaresToQueen) ? 17 :
+                        !(unsafeSquares & blockSq)        ?  7 :
                                                              0 ;
 
                 // Assign a larger bonus if the block square is defended
@@ -1634,9 +1574,74 @@ namespace {
 
     Score score = SCORE_ZERO;
 
+#ifdef ANTI
+    if (pos.is_anti())
+    {
+        constexpr Bitboard TRank2BB = (Us == WHITE ? Rank2BB : Rank7BB);
+        bool weCapture = attackedBy[Us][ALL_PIECES] & pos.pieces(Them);
+        bool theyCapture = attackedBy[Them][ALL_PIECES] & pos.pieces(Us);
+
+        // Penalties for possible captures
+        if (weCapture)
+        {
+            // Penalty if we only attack unprotected pieces
+            bool theyDefended = attackedBy[Us][ALL_PIECES] & pos.pieces(Them) & attackedBy[Them][ALL_PIECES];
+            for (PieceType pt = PAWN; pt <= KING; ++pt)
+            {
+                if (attackedBy[Us][pt] & pos.pieces(Them) & ~attackedBy2[Us])
+                    score -= AttacksAnti[theyCapture][theyDefended][pt];
+                else if (attackedBy[Us][pt] & pos.pieces(Them))
+                    score -= AttacksAnti[theyCapture][theyDefended][NO_PIECE_TYPE];
+            }
+            // If both colors attack pieces, increase penalty with piece count
+            if (theyCapture)
+                score -= PieceCountAnti * pos.count<ALL_PIECES>(Us);
+        }
+        // Bonus if we threaten to force captures (ignoring possible discoveries)
+        if (!weCapture || theyCapture)
+        {
+            constexpr Direction Up = pawn_push(Us);
+            Bitboard b = pos.pieces(Us, PAWN);
+            Bitboard pawnPushes = shift<Up>(b | (shift<Up>(b & TRank2BB) & ~pos.pieces())) & ~pos.pieces();
+            Bitboard pieceMoves = (attackedBy[Us][KNIGHT] | attackedBy[Us][BISHOP] | attackedBy[Us][ROOK]
+                                 | attackedBy[Us][QUEEN] | attackedBy[Us][KING]) & ~pos.pieces();
+            Bitboard unprotectedPawnPushes = pawnPushes & ~attackedBy[Us][ALL_PIECES];
+            Bitboard unprotectedPieceMoves = pieceMoves & ~attackedBy2[Us];
+
+            score += ThreatsAnti[0] * popcount(attackedBy[Them][ALL_PIECES] & (pawnPushes | pieceMoves));
+            score += ThreatsAnti[1] * popcount(attackedBy[Them][ALL_PIECES] & (unprotectedPawnPushes | unprotectedPieceMoves));
+        }
+    }
+#endif
 #ifdef ATOMIC
     if (pos.is_atomic())
-        score -= AtomicConfinedKing * popcount(attackedBy[Us][KING] & pos.pieces());
+    {
+        // attackedBy may be undefined for lazy and hybrid evaluations
+        // Rather than generating attackedBy (which would be complex and slow)
+        // use the same (non-queen) occupancy mask for all sliding attackers
+        Bitboard pieces = pos.pieces() ^ pos.pieces(QUEEN);
+        for (Bitboard b = pos.pieces(Them) & ~attacks_bb<KING>(pos.square<KING>(Us)); b; )
+        {
+            Square s = pop_lsb(&b);
+            Bitboard attackers = pos.attackers_to(s, pieces) & pos.pieces(Us);
+            if (! attackers)
+                continue;
+            Bitboard blast = (attacks_bb<KING>(s) & (pos.pieces() ^ pos.pieces(PAWN))) | s;
+            int count = popcount(blast & pos.pieces(Them)) - popcount(blast & pos.pieces(Us)) - 1;
+            if (blast & pos.pieces(Them, KING, QUEEN))
+                count++;
+            // attackedBy2 may be undefined
+            // (Attacked by queen and not by 2 pieces) was inspired by "dqko"
+            // since generating the full attackers set is costly and even if
+            // multiple queens attack the same square, why should that matter?
+            // Regardless, this is functionally equivalent and therefore cannot
+            // cause a regression although attacker count is meaningless.
+            if ((blast & pos.pieces(Us, QUEEN)) || (attackers == pos.pieces(Us, QUEEN) && popcount(attackers) == 1))
+                count--;
+            score += std::max(SCORE_ZERO, ThreatByBlast * count);
+        }
+        score -= AtomicConfinedKing * popcount(attacks_bb<KING>(pos.square<KING>(Us)) & pos.pieces());
+    }
 #endif
 #ifdef HORDE
     if (pos.is_horde() && pos.is_horde_color(Them))
@@ -1645,9 +1650,13 @@ namespace {
         if (pos.pieces(Us, ROOK) | pos.pieces(Us, QUEEN))
         {
             int dist = 8;
-            if ((attackedBy[Us][QUEEN] | attackedBy[Us][ROOK]) & rank_bb(relative_rank(Us, RANK_8)))
-                dist = 0;
-            else for (File f = FILE_A; f <= FILE_H; ++f)
+            Bitboard target = (Us == WHITE ? Rank8BB : Rank1BB);
+            while (target)
+            {
+                if (pos.attackers_to(pop_lsb(&target)) & pos.pieces(Us, ROOK, QUEEN))
+                    dist = 0;
+            }
+            for (File f = FILE_A; f <= FILE_H; ++f)
             {
                 int pawns = popcount(pos.pieces(Them, PAWN) & file_bb(f));
                 int pawnsl = std::min(popcount(pos.pieces(Them, PAWN) & shift<WEST>(file_bb(f))), pawns);
@@ -1661,16 +1670,13 @@ namespace {
 #ifdef KOTH
     if (pos.is_koth())
     {
-        // Pinned piece (not pawn) attacks are not included in attackedBy
         constexpr Direction Up = pawn_push(Us);
-        Bitboard pinned = pos.blockers_for_king(Them) & pos.pieces(Them);
         Bitboard center = Center;
         while (center)
         {
-            // Skip costly attackers_to if the center is not attacked by them
             Square s = pop_lsb(&center);
             int dist = distance(pos.square<KING>(Us), s)
-                      + ((pinned || (attackedBy[Them][ALL_PIECES] & s)) ? popcount(pos.attackers_to(s) & pos.pieces(Them)) : 0)
+                      + popcount(pos.attackers_to(s) & pos.pieces(Them))
                       + !!(pos.pieces(Us) & s)
                       + !!(shift<Up>(pos.pieces(Us, PAWN) & s) & pos.pieces(Them, PAWN));
             assert(dist > 0);
@@ -1678,24 +1684,45 @@ namespace {
         }
     }
 #endif
-#ifdef RACE
-    if (pos.is_race())
+#ifdef LOSERS
+    if (pos.is_losers())
     {
-        Square ksq = pos.square<KING>(Us);
-        int s = relative_rank(BLACK, ksq);
-        Bitboard b = file_bb(ksq);
-        for (Rank kr = rank_of(ksq), r = Rank(kr + 1); r <= RANK_8; ++r)
+        constexpr Bitboard TRank2BB = (Us == WHITE ? Rank2BB : Rank7BB);
+        constexpr Direction Up = pawn_push(Us);
+        bool weCapture = attackedBy[Us][ALL_PIECES] & pos.pieces(Them);
+        bool theyCapture = attackedBy[Them][ALL_PIECES] & pos.pieces(Us);
+
+        // Penalties for possible captures
+        if (weCapture)
         {
-            b |= shift<EAST>(b) | shift<WEST>(b);
-            if (!(rank_bb(r) & b & ~attackedBy[Them][ALL_PIECES]))
-                s++;
+            // Penalty if we only attack unprotected pieces
+            bool theyDefended = attackedBy[Us][ALL_PIECES] & pos.pieces(Them) & attackedBy[Them][ALL_PIECES];
+            for (PieceType pt = PAWN; pt <= KING; ++pt)
+            {
+                if (attackedBy[Us][pt] & pos.pieces(Them) & ~attackedBy2[Us])
+                    score -= AttacksLosers[theyCapture][theyDefended][pt];
+                else if (attackedBy[Us][pt] & pos.pieces(Them))
+                    score -= AttacksLosers[theyCapture][theyDefended][NO_PIECE_TYPE];
+            }
         }
-        score += KingRaceBonus[std::min(s, 7)];
+        // Bonus if we threaten to force captures (ignoring possible discoveries)
+        if (!weCapture || theyCapture)
+        {
+            Bitboard b = pos.pieces(Us, PAWN);
+            Bitboard pawnPushes = shift<Up>(b | (shift<Up>(b & TRank2BB) & ~pos.pieces())) & ~pos.pieces();
+            Bitboard pieceMoves = (attackedBy[Us][KNIGHT] | attackedBy[Us][BISHOP] | attackedBy[Us][ROOK]
+                                 | attackedBy[Us][QUEEN] | attackedBy[Us][KING]) & ~pos.pieces();
+            Bitboard unprotectedPawnPushes = pawnPushes & ~attackedBy[Us][ALL_PIECES];
+            Bitboard unprotectedPieceMoves = pieceMoves & ~attackedBy2[Us];
+
+            score += ThreatsLosers[0] * popcount(attackedBy[Them][ALL_PIECES] & (pawnPushes | pieceMoves));
+            score += ThreatsLosers[1] * popcount(attackedBy[Them][ALL_PIECES] & (unprotectedPawnPushes | unprotectedPieceMoves));
+        }
     }
 #endif
 #ifdef THREECHECK
     if (pos.is_three_check())
-        score += ChecksGivenBonus[pos.checks_given(Us)];
+        score += (popcount(pos.pieces(Us, BISHOP, KNIGHT) & WideCenter) * pos.checks_given(Us)) * pos.non_pawn_material(Us) / 16;
 #endif
 
     if (T)
@@ -1712,11 +1739,10 @@ namespace {
   template<Tracing T>
   Value Evaluation<T>::winnable(Score score) const {
 
-    int complexity = 0;
-
     bool pawnsOnBothFlanks =   (pos.pieces(PAWN) & QueenSide)
                             && (pos.pieces(PAWN) & KingSide);
 
+    int complexity = 0;
 #ifdef ANTI
     if (pos.is_anti()) {} else
 #endif
@@ -1731,7 +1757,7 @@ namespace {
 #endif
     {
     int outflanking =  distance<File>(pos.square<KING>(WHITE), pos.square<KING>(BLACK))
-                     - distance<Rank>(pos.square<KING>(WHITE), pos.square<KING>(BLACK));
+                    + int(rank_of(pos.square<KING>(WHITE)) - rank_of(pos.square<KING>(BLACK)));
 
     bool almostUnwinnable =   outflanking < 0
                            && !pawnsOnBothFlanks;
@@ -1879,8 +1905,7 @@ namespace {
         return abs(mg_value(score) + eg_value(score)) / 2 > lazyThreshold + pos.non_pawn_material() / 64;
     };
 
-    if (pos.variant() == CHESS_VARIANT)
-    if (lazy_skip(LazyThreshold1))
+    if (lazy_skip(LazyThreshold1[pos.variant()]))
         goto make_v;
 
     // Main evaluation begins here
@@ -1900,17 +1925,16 @@ namespace {
     score +=  king<   WHITE>() - king<   BLACK>()
             + passed< WHITE>() - passed< BLACK>();
 
-    if (pos.variant() == CHESS_VARIANT)
     if (lazy_skip(LazyThreshold2))
         goto make_v;
 
     score +=  threats<WHITE>() - threats<BLACK>()
             + space<  WHITE>() - space<  BLACK>();
 
-    if (pos.variant() != CHESS_VARIANT)
-        score += variant<WHITE>() - variant<BLACK>();
 make_v:
     // Derive single value from mg and eg parts of score
+    if (pos.variant() != CHESS_VARIANT)
+        score += variant<WHITE>() - variant<BLACK>();
     Value v = winnable(score);
 
     // In case of tracing add all remaining individual evaluation terms
@@ -1929,6 +1953,22 @@ make_v:
     v = (pos.side_to_move() == WHITE ? v : -v) + Tempo;
 
     return v;
+  }
+
+  template<Tracing T>
+  Value Evaluation<T>::variantValue(Value v) {
+    me = Material::probe(pos);
+    if (me->specialized_eval_exists())
+        return me->evaluate(pos);
+
+    Score score = variant<WHITE>() - variant<BLACK>();
+    Value mg = mg_value(score), eg = eg_value(score);
+    int sf = me->scale_factor(pos, eg > VALUE_DRAW ? WHITE : BLACK);
+    Value v2 =  mg * int(me->game_phase())
+              + eg * int(PHASE_MIDGAME - me->game_phase()) * ScaleFactor(sf) / SCALE_FACTOR_NORMAL;
+    v2 /= PHASE_MIDGAME;
+
+    return v + (pos.side_to_move() == WHITE ? v2 : -v2);
   }
 
 } // namespace
@@ -1951,7 +1991,10 @@ Value Eval::evaluate(const Position& pos) {
       // Scale and shift NNUE for compatibility with search and classical evaluation
       auto  adjusted_NNUE = [&](){
          int mat = pos.non_pawn_material() + PawnValueMg * pos.count<PAWN>();
-         return NNUE::evaluate(pos) * (679 + mat / 32) / 1024 + Tempo;
+         Value value = NNUE::evaluate(pos) * (679 + mat / 32) / 1024 + Tempo;
+         if (pos.variant() != CHESS_VARIANT)
+             return Evaluation<NO_TRACE>(pos).variantValue(value);
+         return value;
       };
 
       // If there is PSQ imbalance use classical eval, with small probability if it is small

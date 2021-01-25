@@ -1,6 +1,6 @@
 /*
   Stockfish, a UCI chess playing engine derived from Glaurung 2.1
-  Copyright (C) 2004-2020 The Stockfish developers (see AUTHORS file)
+  Copyright (C) 2004-2021 The Stockfish developers (see AUTHORS file)
 
   Stockfish is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -54,43 +54,7 @@ namespace {
   constexpr uint64_t TtHitAverageWindow     = 4096;
   constexpr uint64_t TtHitAverageResolution = 1024;
 
-  // Razor and futility margins
-  constexpr int RazorMargin[VARIANT_NB] = {
-  510,
-#ifdef ANTI
-  2234,
-#endif
-#ifdef ATOMIC
-  600,
-#endif
-#ifdef CRAZYHOUSE
-  600,
-#endif
-#ifdef EXTINCTION
-  600,
-#endif
-#ifdef GRID
-  600,
-#endif
-#ifdef HORDE
-  600,
-#endif
-#ifdef KOTH
-  600,
-#endif
-#ifdef LOSERS
-  2351,
-#endif
-#ifdef RACE
-  600,
-#endif
-#ifdef THREECHECK
-  600,
-#endif
-#ifdef TWOKINGS
-  600,
-#endif
-  };
+  // Futility margin
   constexpr int FutilityMarginFactor[VARIANT_NB] = {
   234,
 #ifdef ANTI
@@ -128,7 +92,7 @@ namespace {
 #endif
   };
   constexpr int FutilityMarginParent[VARIANT_NB][2] = {
-  { 266, 170 },
+  { 254, 159 },
 #ifdef ANTI
   { 331, 372 },
 #endif
@@ -164,7 +128,7 @@ namespace {
 #endif
   };
   constexpr int ProbcutMargin[VARIANT_NB] = {
-  183,
+  194,
 #ifdef ANTI
   216,
 #endif
@@ -217,10 +181,10 @@ namespace {
 
   // History and stats update bonus, based on depth
   int stat_bonus(Depth d) {
-    return d > 13 ? 29 : 17 * d * d + 134 * d - 134;
+    return d > 14 ? 29 : 8 * d * d + 224 * d - 215;
   }
 
-  // Add a small random component to draw evaluations to avoid 3fold-blindness
+  // Add a small random component to draw evaluations to avoid 3-fold blindness
   Value value_draw(Thread* thisThread) {
     return VALUE_DRAW + Value(2 * (thisThread->nodes & 1) - 1);
   }
@@ -881,7 +845,23 @@ namespace {
     CapturePieceToHistory& captureHistory = thisThread->captureHistory;
 
     // Step 6. Static evaluation of the position
-    if (ss->inCheck)
+    bool skipEarlyPruning;
+    switch (pos.variant())
+    {
+#ifdef ANTI
+    case ANTI_VARIANT:
+        skipEarlyPruning = pos.can_capture();
+        break;
+#endif
+#ifdef RACE
+    case RACE_VARIANT:
+        skipEarlyPruning = pos.pieces(KING) & (Rank7BB | Rank8BB);
+        break;
+#endif
+    default:
+        skipEarlyPruning = ss->inCheck;
+    }
+    if (skipEarlyPruning)
     {
         // Skip early pruning when in check
         ss->staticEval = eval = VALUE_NONE;
@@ -921,46 +901,12 @@ namespace {
         eval = -eval;
 #endif
 
-    if ((ss-1)->moveCount > 1 && is_ok((ss-1)->currentMove) && !(ss-1)->inCheck && !priorCapture && depth < 7)
+    // Use static evaluation difference to improve quiet move ordering
+    if (is_ok((ss-1)->currentMove) && !(ss-1)->inCheck && !priorCapture)
     {
-        int bonus = std::clamp(- (depth+1) * 2 * int((ss-1)->staticEval + ss->staticEval - 2 * Tempo), -1000, 1000);
+        int bonus = std::clamp(-depth * 4 * int((ss-1)->staticEval + ss->staticEval - 2 * Tempo), -1000, 1000);
         thisThread->mainHistory[~us][from_to((ss-1)->currentMove)] << bonus;
     }
-
-    // Step 7. Razoring (~1 Elo)
-#ifdef ANTI
-    if (pos.is_anti() && pos.can_capture())
-    {
-        improving = false;
-        goto moves_loop;
-    }
-#endif
-#ifdef LOSERS
-    if (pos.is_losers() && pos.can_capture_losers())
-    {
-        improving =   ss->staticEval >= (ss-2)->staticEval
-                   || (ss-2)->staticEval == VALUE_NONE;
-        goto moves_loop;
-    }
-#endif
-#ifdef HELPMATE
-    if (pos.is_helpmate())
-    {
-        improving = false;
-        goto moves_loop;
-    }
-#endif
-#ifdef RACE
-    if (pos.is_race() && (pos.pieces(KING) & (Rank7BB | Rank8BB)))
-    {
-        improving = false;
-        goto moves_loop;
-    }
-#endif
-    if (   !rootNode // The required rootNode PV handling is not available in qsearch
-        &&  depth == 1
-        &&  eval <= alpha - RazorMargin[pos.variant()])
-        return qsearch<NT>(pos, ss, alpha, beta);
 
     // Set up improving flag that is used in various pruning heuristics
     // We define position as improving if static evaluation of position is better
@@ -970,17 +916,25 @@ namespace {
                ? ss->staticEval > (ss-4)->staticEval || (ss-4)->staticEval == VALUE_NONE
                : ss->staticEval > (ss-2)->staticEval;
 
-    // Step 8. Futility pruning: child node (~50 Elo)
+    // Step 7. Futility pruning: child node (~50 Elo)
+#ifdef HELPMATE
+    if (pos.is_helpmate())
+        goto moves_loop;
+#endif
+#ifdef LOSERS
+    if (pos.is_losers() && pos.can_capture_losers())
+        goto moves_loop;
+#endif
 #ifdef EXTINCTION
     if (pos.is_extinction()) {} else
 #endif
     if (   !PvNode
-        &&  depth < 8
+        &&  depth < 9
         &&  eval - futility_margin(pos.variant(), depth, improving) >= beta
         &&  eval < VALUE_KNOWN_WIN) // Do not return unproven wins
         return eval;
 
-    // Step 9. Null move search with verification search (~40 Elo)
+    // Step 8. Null move search with verification search (~40 Elo)
 #ifdef GRID
     if (pos.is_grid()) {} else
 #endif
@@ -1050,7 +1004,7 @@ namespace {
 
     probCutBeta = beta + ProbcutMargin[pos.variant()] - 49 * improving;
 
-    // Step 10. ProbCut (~10 Elo)
+    // Step 9. ProbCut (~10 Elo)
     // If we have a good enough capture and a reduced search returns a value
     // much above beta, we can (almost) safely prune the previous move.
     if (   !PvNode
@@ -1092,7 +1046,7 @@ namespace {
                 probCutCount++;
 
                 ss->currentMove = move;
-                ss->continuationHistory = &thisThread->continuationHistory[ss->inCheck]
+                ss->continuationHistory = &thisThread->continuationHistory[skipEarlyPruning]
                                                                           [captureOrPromotion]
                                                                           [pos.moved_piece(move)]
                                                                           [to_sq(move)];
@@ -1123,7 +1077,7 @@ namespace {
          ss->ttPv = ttPv;
     }
 
-    // Step 11. If the position is not in TT, decrease depth by 2
+    // Step 10. If the position is not in TT, decrease depth by 2
     if (   PvNode
         && depth >= 6
         && !ttMove)
@@ -1152,7 +1106,7 @@ moves_loop: // When in check, search starts from here
     // Mark this node as being searched
     ThreadHolding th(thisThread, posKey, ss->ply);
 
-    // Step 12. Loop through all pseudo-legal moves until no moves remain
+    // Step 11. Loop through all pseudo-legal moves until no moves remain
     // or a beta cutoff occurs.
     while ((move = mp.next_move(moveCountPruning)) != MOVE_NONE)
     {
@@ -1195,7 +1149,7 @@ moves_loop: // When in check, search starts from here
       // Calculate new depth for this move
       newDepth = depth - 1;
 
-      // Step 13. Pruning at shallow depth (~200 Elo)
+      // Step 12. Pruning at shallow depth (~200 Elo)
       if (  !rootNode
 #ifdef HORDE
           && (pos.is_horde() || pos.non_pawn_material(us))
@@ -1210,8 +1164,20 @@ moves_loop: // When in check, search starts from here
           // Reduced depth of the next LMR search
           int lmrDepth = std::max(newDepth - reduction(improving, depth, moveCount), 0);
 
-          if (   !captureOrPromotion
-              && !givesCheck)
+          if (   captureOrPromotion
+              || givesCheck)
+          {
+              // Capture history based pruning when the move doesn't give check
+              if (   !givesCheck
+                  && lmrDepth < 1
+                  && captureHistory[movedPiece][to_sq(move)][type_of(pos.piece_on(to_sq(move)))] < 0)
+                  continue;
+
+              // SEE based pruning
+              if (!pos.see_ge(move, Value(-218) * depth)) // (~25 Elo)
+                  continue;
+          }
+          else
           {
               // Countermoves based pruning (~20 Elo)
               if (   lmrDepth < 4 + ((ss-1)->statScore > 0 || (ss-1)->moveCount == 1)
@@ -1224,12 +1190,12 @@ moves_loop: // When in check, search starts from here
               if (pos.is_losers()) {} else
 #endif
               if (   lmrDepth < 7
-                  && !ss->inCheck
+                  && !skipEarlyPruning
                   && ss->staticEval + FutilityMarginParent[pos.variant()][0] + FutilityMarginParent[pos.variant()][1] * lmrDepth <= alpha
                   &&  (*contHist[0])[movedPiece][to_sq(move)]
                     + (*contHist[1])[movedPiece][to_sq(move)]
                     + (*contHist[3])[movedPiece][to_sq(move)]
-                    + (*contHist[5])[movedPiece][to_sq(move)] / 2 < 27376)
+                    + (*contHist[5])[movedPiece][to_sq(move)] / 2 < 26394)
                   continue;
 
               // Prune moves with negative SEE (~20 Elo)
@@ -1242,21 +1208,9 @@ moves_loop: // When in check, search starts from here
               if (!pos.see_ge(move, Value(-(30 - std::min(lmrDepth, 18)) * lmrDepth * lmrDepth)))
                   continue;
           }
-          else
-          {
-              // Capture history based pruning when the move doesn't give check
-              if (   !givesCheck
-                  && lmrDepth < 1
-                  && captureHistory[movedPiece][to_sq(move)][type_of(pos.piece_on(to_sq(move)))] < 0)
-                  continue;
-
-              // SEE based pruning
-              if (!pos.see_ge(move, Value(-213) * depth)) // (~25 Elo)
-                  continue;
-          }
       }
 
-      // Step 14. Extensions (~75 Elo)
+      // Step 13. Extensions (~75 Elo)
 
       // Singular extension search (~70 Elo). If all moves but one fail low on a
       // search of (alpha-s, beta-s), and just one fails high on (alpha, beta),
@@ -1317,19 +1271,13 @@ moves_loop: // When in check, search starts from here
       }
 #endif
       else if (    givesCheck
-               && (pos.is_discovery_check_on_king(~us, move) || pos.see_ge(move)))
+               && (pos.is_discovered_check_on_king(~us, move) || pos.see_ge(move)))
           extension = 1;
 
       // Last captures extension
       else if (   PieceValue[pos.variant()][EG][pos.captured_piece()] > PawnValueEg
                && pos.non_pawn_material() <= 2 * RookValueMg)
           extension = 1;
-
-      // Late irreversible move extension
-      if (   move == ttMove
-          && pos.rule50_count() > 80
-          && (captureOrPromotion || type_of(movedPiece) == PAWN))
-          extension = 2;
 
       // Add extension to new depth
       newDepth += extension;
@@ -1339,15 +1287,15 @@ moves_loop: // When in check, search starts from here
 
       // Update the current move (this must be done after singular extension search)
       ss->currentMove = move;
-      ss->continuationHistory = &thisThread->continuationHistory[ss->inCheck]
+      ss->continuationHistory = &thisThread->continuationHistory[skipEarlyPruning]
                                                                 [captureOrPromotion]
                                                                 [movedPiece]
                                                                 [to_sq(move)];
 
-      // Step 15. Make the move
+      // Step 14. Make the move
       pos.do_move(move, st, givesCheck);
 
-      // Step 16. Reduced depth search (LMR, ~200 Elo). If the move fails high it will be
+      // Step 15. Reduced depth search (LMR, ~200 Elo). If the move fails high it will be
       // re-searched at full depth.
       if (    depth >= 3
           &&  moveCount > 1 + 2 * rootNode
@@ -1355,6 +1303,7 @@ moves_loop: // When in check, search starts from here
               || moveCountPruning
               || ss->staticEval + PieceValue[pos.variant()][EG][pos.captured_piece()] <= alpha
               || cutNode
+              || (!PvNode && !formerPv && captureHistory[movedPiece][to_sq(move)][type_of(pos.captured_piece())] < 4506)
               || thisThread->ttHitAverage < 432 * TtHitAverageResolution * TtHitAverageWindow / 1024))
       {
           Depth r = reduction(improving, depth, moveCount);
@@ -1387,7 +1336,14 @@ moves_loop: // When in check, search starts from here
           if (singularQuietLMR)
               r--;
 
-          if (!captureOrPromotion)
+          if (captureOrPromotion)
+          {
+              // Unless giving check, this capture is likely bad
+              if (   !givesCheck
+                  && ss->staticEval + PieceValue[pos.variant()][EG][pos.captured_piece()] + 210 * depth <= alpha)
+                  r++;
+          }
+          else
           {
               // Increase reduction if ttMove is a capture (~5 Elo)
               if (ttCapture)
@@ -1421,14 +1377,13 @@ moves_loop: // When in check, search starts from here
                   r++;
 
               // Decrease/increase reduction for moves with a good/bad history (~30 Elo)
-              r -= ss->statScore / 14884;
-          }
-          else
-          {
-              // Unless giving check, this capture is likely bad
-              if (   !givesCheck
-                  && ss->staticEval + PieceValue[pos.variant()][EG][pos.captured_piece()] + 210 * depth <= alpha)
-                  r++;
+              // If we are not in check use statScore, if we are in check
+              // use sum of main history and first continuation history with an offset
+              if (ss->inCheck)
+                  r -= (thisThread->mainHistory[us][from_to(move)]
+                     + (*contHist[0])[movedPiece][to_sq(move)] - 4333) / 16384;
+              else
+                  r -= ss->statScore / 14884;
           }
 
           Depth d = std::clamp(newDepth - r, 1, newDepth);
@@ -1450,7 +1405,7 @@ moves_loop: // When in check, search starts from here
           didLMR = false;
       }
 
-      // Step 17. Full depth search when LMR is skipped or fails high
+      // Step 16. Full depth search when LMR is skipped or fails high
       if (doFullDepthSearch)
       {
           value = -search<NonPV>(pos, ss+1, -(alpha+1), -alpha, newDepth, !cutNode);
@@ -1485,12 +1440,12 @@ moves_loop: // When in check, search starts from here
 #endif
       }
 
-      // Step 18. Undo move
+      // Step 17. Undo move
       pos.undo_move(move);
 
       assert(value > -VALUE_INFINITE && value < VALUE_INFINITE);
 
-      // Step 19. Check for a new best move
+      // Step 18. Check for a new best move
       // Finished searching the move. If a stop occurred, the return value of
       // the search cannot be trusted, and we return immediately without
       // updating best move, PV and TT.
@@ -1567,7 +1522,7 @@ moves_loop: // When in check, search starts from here
         return VALUE_DRAW;
     */
 
-    // Step 20. Check for mate and stalemate
+    // Step 19. Check for mate and stalemate
     // All legal moves have been searched and if there are no legal moves, it
     // must be a mate or a stalemate. If we are in a singular extension search then
     // return a fail low score.
@@ -1766,7 +1721,7 @@ moves_loop: // When in check, search starts from here
           &&  futilityBase > -VALUE_KNOWN_WIN
           && !pos.advanced_pawn_push(move))
       {
-          assert(type_of(move) != ENPASSANT); // Due to !pos.advanced_pawn_push
+          assert(type_of(move) != EN_PASSANT); // Due to !pos.advanced_pawn_push
 
           // moveCount pruning
           if (moveCount > 2)
