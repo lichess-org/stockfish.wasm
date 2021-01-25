@@ -1,6 +1,6 @@
 {
   "name": "stockfish-mv.wasm",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "description": "WebAssembly port of the strong chess engine Stockfish with multi-variant support",
   "keywords": ["chess", "stockfish", "emscripten", "lichess", "webassembly"],
   "author": "Niklas Fiekas <niklas.fiekas@backscattering.de>",
