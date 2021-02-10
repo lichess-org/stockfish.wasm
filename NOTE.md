@@ -43,7 +43,7 @@ Nodes/second    : 49439
 Run on browser
 
 ```
-python misc/server.py # then open https://localhost:8080/misc/test.html
+python misc/server.py # then open http://localhost:8000/misc/test.html
 ```
 
 Benchmark `evaluate` (essentially this measures the performance of matrix(32x512)-vector(512) multiplication)
