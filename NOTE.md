@@ -59,9 +59,25 @@ Benchmark `evaluate` (essentially this measures the performance of matrix(32x512
 447.088706 nsec (stddev: 10.019180, min: 434.404873, max: 465.951900, n: 400000, r: 10)
 ```
 
+Feature detection for `i32x4.dot_i16x8_s` (see `misc/feature_detection.wat` for how these bytes are generated)
+
+```
+/usr/bin/node --experimental-wasm-simd
+> data = Uint8Array.from([0, 97, 115, 109, 1, 0, 0, 0, 1, 5, 1, 96, 0, 1, 123, 3, 2, 1, 0, 7, 8, 1, 4, 116, 101, 115, 116, 0, 0, 10, 15, 1, 13, 0, 65, 0, 253, 17, 65, 0, 253, 17, 253, 186, 1, 11])
+> WebAssembly.validate(data)
+false
+
+/usr/bin/node --experimental-wasm-simd --wasm-simd-post-mvp
+> data = Uint8Array.from([0, 97, 115, 109, 1, 0, 0, 0, 1, 5, 1, 96, 0, 1, 123, 3, 2, 1, 0, 7, 8, 1, 4, 116, 101, 115, 116, 0, 0, 10, 15, 1, 13, 0, 65, 0, 253, 17, 65, 0, 253, 17, 253, 186, 1, 11])
+> WebAssembly.validate(data)
+true
+```
+
 References
 
 - WASM SIMD Specification (https://github.com/webassembly/simd/blob/master/proposals/simd/SIMD.md)
 - WASM SIMD header (https://github.com/llvm/llvm-project/blob/main/clang/lib/Headers/wasm_simd128.h)
 - WASM SIMD builtin to experiment with "post-mvp" features (https://github.com/llvm/llvm-project/blob/main/clang/include/clang/Basic/BuiltinsWebAssembly.def)
 - Emscripten's x86 SIMD emulation by WASM SIMD (https://github.com/emscripten-core/emscripten/blob/master/system/include/compat/xmmintrin.h)
+- V8's WASM opcode list (https://github.com/v8/v8/blob/master/src/wasm/wasm-opcodes.h)
+- SpiderMonkey's WASM opcode list (https://github.com/mozilla/gecko-dev/blob/master/js/src/wasm/WasmConstants.h)
