@@ -41,6 +41,9 @@
 
 #elif defined(USE_NEON)
 #include <arm_neon.h>
+
+#elif defined(USE_WASM_SIMD)
+#include <wasm_simd128.h>
 #endif
 
 namespace Eval::NNUE {

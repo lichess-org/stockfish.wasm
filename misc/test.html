@@ -1,0 +1,21 @@
+<script src="../src/stockfish.js"></script>
+<script>
+  console.log(":: Loading Stockfish");
+  Stockfish().then(sf => {
+    window.sf = sf;
+    console.log(":: `window.sf` is ready");
+  });
+
+  // NOTE: The `bench` command will block main thread, thus make browser irresponsible...
+  const runBenchmark = () => {
+    const commands = [
+      "bench 16 1 20 current depth classical",
+      "bench 16 1 20 current depth NNUE"
+    ];
+    console.log(":: Run benchmark")
+    for (let command of commands) {
+      console.log(`--- {command} ---`)
+      sf.postMessage(command);
+    }
+  };
+</script>

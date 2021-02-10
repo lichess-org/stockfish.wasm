@@ -28,7 +28,7 @@ EXE = stockfish.js
 SRCS = benchmark.cpp bitbase.cpp bitboard.cpp endgame.cpp evaluate.cpp main.cpp \
 	material.cpp misc.cpp movegen.cpp movepick.cpp pawns.cpp position.cpp psqt.cpp \
 	search.cpp thread.cpp timeman.cpp tt.cpp uci.cpp ucioption.cpp tune.cpp \
-	nnue/evaluate_nnue.cpp nnue/features/half_kp.cpp
+	nnue/evaluate_nnue.cpp nnue/features/half_kp.cpp nnue/math.cpp embedded_nnue_data.cpp
 
 OBJS = $(notdir $(SRCS:.cpp=.o))
 
@@ -43,6 +43,8 @@ VPATH = nnue:nnue/features
 #
 # debug = yes/no      --- -DNDEBUG         --- Enable/Disable debug mode
 # optimize = yes/no   --- (-O3/-fast etc.) --- Enable/Disable optimizations
+# wasm_simd = yes/no
+# wasm_simd_post_mvp = yes/no
 #
 # Note that Makefile is space sensitive, so when adding new architectures
 # or modifying existing flags, you have to make sure there are no extra spaces
@@ -54,6 +56,8 @@ optimize = yes
 debug = no
 popcnt = yes
 bits = 64
+wasm_simd = no
+wasm_simd_post_mvp = no
 
 COMP = emscripten
 EXE = stockfish.js
@@ -70,7 +74,6 @@ LDFLAGS += $(EXTRALDFLAGS)
 ifeq ($(COMP),emscripten)
 	comp=clang
 	CXX=em++
-	EMFLAGS += -DNNUE_EMBEDDING_OFF
 	EMFLAGS += -s MODULARIZE=1 -s EXPORT_NAME="Stockfish" -s ENVIRONMENT=web,worker,node -s USE_PTHREADS=1 -s PTHREAD_POOL_SIZE=1
 	EMFLAGS += -s EXIT_RUNTIME=0 -s "EXTRA_EXPORTED_RUNTIME_METHODS=['ccall']" -s "INCOMING_MODULE_JS_API=['print', 'postRun', 'onAbort', 'onRuntimeInitialized']" --pre-js pre.js
 	EMFLAGS += -s ALLOW_MEMORY_GROWTH=1 -s INITIAL_MEMORY=67108864 -s MAXIMUM_MEMORY=2147483648
@@ -104,6 +107,13 @@ ifeq ($(popcnt),yes)
 	CXXFLAGS += -DUSE_POPCNT
 endif
 
+### 3.7 SIMD
+ifeq ($(wasm_simd_post_mvp),yes)
+	CXXFLAGS += -msimd128 -DUSE_WASM_SIMD -DUSE_WASM_SIMD_POST_MVP
+else ifeq ($(wasm_simd),yes)
+	CXXFLAGS += -msimd128 -DUSE_WASM_SIMD
+endif
+
 ### 3.8 Link Time Optimization
 ### This is a mix of compile and link time options because the lto link phase
 ### needs access to the optimization flags.
@@ -132,6 +142,36 @@ clean: objclean
 # clean binaries and objects
 objclean:
 	@rm -f $(EXE) *.o
+
+# evaluation network (nnue)
+nnuenet=nn-62ef826d1a6d.nnue
+
+net:
+	@echo "Default net: $(nnuenet)"
+	$(eval nnuedownloadurl := https://tests.stockfishchess.org/api/nn/$(nnuenet))
+	$(eval curl_or_wget := $(shell if hash curl 2>/dev/null; then echo "curl -skL"; elif hash wget 2>/dev/null; then echo "wget -qO-"; fi))
+	@if test -f "$(nnuenet)"; then \
+            echo "Already available."; \
+         else \
+            if [ "x$(curl_or_wget)" = "x" ]; then \
+               echo "Automatic download failed: neither curl nor wget is installed. Install one of these tools or download the net manually"; exit 1; \
+            else \
+               echo "Downloading $(nnuedownloadurl)"; $(curl_or_wget) $(nnuedownloadurl) > $(nnuenet);\
+            fi; \
+        fi;
+	$(eval shasum_command := $(shell if hash shasum 2>/dev/null; then echo "shasum -a 256 "; elif hash sha256sum 2>/dev/null; then echo "sha256sum "; fi))
+	@if [ "x$(shasum_command)" != "x" ]; then \
+	    if [ "$(nnuenet)" != "nn-"`$(shasum_command) $(nnuenet) | cut -c1-12`".nnue" ]; then \
+                echo "Failed download or $(nnuenet) corrupted, please delete!"; exit 1; \
+            fi \
+         else \
+            echo "shasum / sha256sum not found, skipping net validation"; \
+        fi
+
+embedded_nnue_data.cpp: net
+	@echo "-- Generate embedded_nnue_data.cpp --"
+	python ../misc/embedded_nnue_data.py $(nnuenet) > embedded_nnue_data.cpp
+
 
 ### ==========================================================================
 ### Section 5. Private Targets

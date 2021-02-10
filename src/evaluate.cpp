@@ -34,9 +34,13 @@
 #include "pawns.h"
 #include "thread.h"
 #include "uci.h"
+
+// NOTE: WASM linker has some trouble with "incbin.h", so we simply embed data as string literal (see embedded_nnue_data.py)
+#ifdef __EMSCRIPTEN__
+#include "embedded_nnue_data.h"
+#else
+
 #include "incbin/incbin.h"
-
-
 // Macro to embed the default NNUE file data in the engine binary (using incbin.h, by Dale Weiler).
 // This macro invocation will declare the following three variables
 //     const unsigned char        gEmbeddedNNUEData[];  // a pointer to the embedded data
@@ -51,6 +55,7 @@
   const unsigned int         gEmbeddedNNUESize = 1;
 #endif
 
+#endif
 
 using namespace std;
 using namespace Eval::NNUE;
@@ -76,12 +81,19 @@ namespace Eval {
 
     string eval_file = string(Options["EvalFile"]);
 
+    #ifdef __EMSCRIPTEN__
+    vector<string> dirs = { "<internal>" };
+
+    #else
+
     #if defined(DEFAULT_NNUE_DIRECTORY)
     #define stringify2(x) #x
     #define stringify(x) stringify2(x)
     vector<string> dirs = { "<internal>" , "" , CommandLine::binaryDirectory , stringify(DEFAULT_NNUE_DIRECTORY) };
     #else
     vector<string> dirs = { "<internal>" , "" , CommandLine::binaryDirectory };
+    #endif
+
     #endif
 
     for (string directory : dirs)

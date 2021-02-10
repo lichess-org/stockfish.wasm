@@ -73,6 +73,8 @@ void init(OptionsMap& o) {
   o["UCI_LimitStrength"]     << Option(false);
   o["UCI_Elo"]               << Option(1350, 1350, 2850);
   o["UCI_ShowWDL"]           << Option(false);
+  o["Use NNUE"]              << Option(true, on_use_NNUE);
+  o["EvalFile"]              << Option(EvalFileDefaultName, on_use_NNUE);
 }
 
 

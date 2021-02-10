@@ -587,6 +587,11 @@ string binaryDirectory;  // path of the executable directory
 string workingDirectory; // path of the working directory
 
 void init(int argc, char* argv[]) {
+    // NOTE: `GETCWD` below requires emscripten FILESYSTEM support
+    #ifdef __EMSCRIPTEN__
+    return;
+    #endif
+
     (void)argc;
     string pathSeparator;
 
