@@ -31,6 +31,7 @@
 #include "timeman.h"
 #include "tt.h"
 #include "uci.h"
+#include "../misc/timeit.hpp"
 
 using namespace std;
 
@@ -217,6 +218,10 @@ namespace {
      return int(0.5 + 1000 / (1 + std::exp((a - x) / b)));
   }
 
+  void bench_eval(Position& pos) {
+    auto res = timeit::timeit([&]() { return Eval::evaluate(pos); });
+    std::cerr << res << std::endl;
+  }
 } // namespace
 
 
@@ -275,6 +280,7 @@ EMSCRIPTEN_KEEPALIVE extern "C" int uci_command(const char *c_cmd) {
       // Do not use these commands during a search!
       else if (token == "flip")     pos.flip();
       else if (token == "bench")    bench(pos, is, states);
+      else if (token == "bench_eval")    bench_eval(pos);
       else if (token == "d")        sync_cout << pos << sync_endl;
       else if (token == "eval")     trace_eval(pos);
       else if (token == "compiler") sync_cout << compiler_info() << sync_endl;

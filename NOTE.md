@@ -46,6 +46,19 @@ Run on browser
 python misc/server.py # then open https://localhost:8080/misc/test.html
 ```
 
+Benchmark `evaluate` (essentially this measures the performance of matrix(32x512)-vector(512) multiplication)
+
+```
+/usr/bin/node --experimental-wasm-{simd,threads} --experimental-repl-await --wasm-simd-post-mvp
+> const sf = await require("./stockfish")();
+> sf.postMessage("setoption name Use NNUE value true")
+> sf.postMessage("bench_eval")
+1.860234 usec (stddev: 0.050028, min: 1.810873, max: 1.951648, n: 80000, r: 10)
+> sf.postMessage("setoption name Use NNUE value false") # Non-NNUE case is not so relevant because Stockfish caches a lot of classical evaluation
+> sf.postMessage("bench_eval")
+447.088706 nsec (stddev: 10.019180, min: 434.404873, max: 465.951900, n: 400000, r: 10)
+```
+
 References
 
 - WASM SIMD Specification (https://github.com/webassembly/simd/blob/master/proposals/simd/SIMD.md)
