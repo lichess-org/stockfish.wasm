@@ -1,0 +1,60 @@
+name: Match
+on:
+  workflow_dispatch:
+    inputs:
+      rounds:
+        description: Number of rounds
+        required: true
+        default: 10
+      concurrency:
+        description: Concurrency of matches
+        required: true
+        default: 2
+      time_control:
+        description: Time control (e.g. 10+0.1, 60+0.6, etc...)
+        required: true
+        default: "10+0.1"
+      build_args:
+        description: Build flags
+        required: true
+        default: "wasm_simd_post_mvp=yes"
+jobs:
+  match:
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v2
+      - uses: mymindstorm/setup-emsdk@v8
+      - uses: actions/setup-python@v2
+
+      - name: Install cutechess-cli
+        run: >
+          sudo apt-get update && sudo apt-get install -y qt5-default &&
+          wget https://github.com/cutechess/cutechess/releases/download/1.2.0/cutechess_20200809+1.2.0+1.2.0-1_amd64.deb &&
+          sudo dpkg -i cutechess_20200809+1.2.0+1.2.0-1_amd64.deb
+
+      - name: Download opening book
+        run: >
+          wget https://github.com/official-stockfish/books/raw/master/noob_3moves.epd.zip && unzip noob_3moves.epd.zip
+
+      - name: Build stockfish.wasm
+        run: make -C src -j 4 build ${{ github.event.inputs.build_args }}
+
+      - name: Install NodeJS
+        uses: actions/setup-node@v2
+        with:
+          node-version: 15
+
+      - name: Print NodeJS/V8 versions
+        run: "node -e 'console.log(`node: ${process.version}\nv8: ${process.versions.v8}`)'"
+
+      - name: Run cutechess-cli
+        run: >
+          TC=${{ github.event.inputs.time_control }}
+          CONCURRENCY=${{ github.event.inputs.concurrency }}
+          ROUNDS=${{ github.event.inputs.rounds }}
+          OPENING="-openings file=noob_3moves.epd format=epd policy=round -repeat -games 2"
+          bash misc/match.sh
+
+      - uses: actions/upload-artifact@v2
+        with:
+          path: result.pgn
