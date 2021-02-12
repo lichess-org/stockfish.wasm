@@ -220,7 +220,7 @@ namespace {
 
   void bench_eval(Position& pos) {
     auto res = timeit::timeit([&]() { return Eval::evaluate(pos); });
-    std::cerr << res << std::endl;
+    std::cout << res << std::endl;
   }
 } // namespace
 

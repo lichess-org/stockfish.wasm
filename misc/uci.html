@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1, maximum-scale=1, user-scalable=no" />
+</head>
+
+<!-- CSS -->
+
+<style>
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0; padding: 0; border: 0;
+  font: inherit;
+}
+
+html {
+  height: 100%;
+}
+
+body {
+  height: 100%;
+  font-family: monospace;
+}
+
+main {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 10px;
+}
+
+#input {
+  display: flex;
+  margin-bottom: 10px;
+}
+
+#input #command {
+  width: 80%;
+  padding: 2px 0 2px 6px;
+  border: 1px solid #ddd;
+  border-right: 0;
+}
+
+#input #send {
+  display: inline-block;
+  padding: 3px 6px 3px 6px;
+  background: #888;
+  color: #fff;
+  font-weight: bold;
+  margin-right: 6px;
+  cursor: pointer;
+}
+
+#input #examples {
+  width: 120px;
+  background: #eee;
+}
+
+#misc {
+  margin-bottom: 10px;
+}
+
+#output {
+  flex: 1 1 auto;
+  width: 100%;
+  border: 1px solid #ddd;
+  padding: 10px;
+  overflow: scroll;
+  box-shadow: inset 1px 1px 2px #eee;
+  font-size: 12px;
+}
+
+</style>
+
+<body>
+
+<!-- Javascript -->
+
+<script src="../src/stockfish.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mithril@2.0.4/mithril.min.js"></script>
+<script>
+
+const $ = (...args) => document.querySelector(...args);
+
+const App = () => {
+  let sf = null;
+  let sf_state = 'INIT'; // 'READY', 'FAILED'
+  let output = '';
+  let tail_output = true;
+
+  const examples = [
+    'uci',
+    'go',
+    'stop',
+    'bench_eval',
+    'setoption name Use NNUE value true',
+    'setoption name Use NNUE value false',
+  ];
+
+  const sendCommand = () => {
+    const command = $('#command').value;
+    if (command.length > 0) { sf.postMessage(command); }
+  };
+
+  const scrollOutput = () => {
+    if (!tail_output) { return; }
+    $('#output').scrollTo({ top: $('#output').scrollHeight, behavior: 'smooth' });
+  };
+
+  const oninit = () => {
+    sf_state = 'LOADING';
+    Stockfish()
+    .then(_sf => {
+      sf = _sf;
+      sf_state = 'READY';
+      sf.addMessageListener((line) => {
+        output += line + '\n';
+        m.redraw();
+        window.setTimeout(scrollOutput, 10);
+      });
+    })
+    .catch(e => { sf_state = 'FAILED'; throw e; })
+    .finally(() => m.redraw());
+  };
+
+  const view = () => {
+    const is_ready = sf_state == 'READY';
+
+    return m("main", [
+      m("div#input", [
+        m("input#command", {
+          placeholder: 'Input UCI Command Here',
+          disabled: !is_ready,
+          onkeyup: (e) => {
+            if (e.keyCode != 13) { e.redraw = false; return; }
+            sendCommand();
+          }
+        }),
+        m("span#send", { disabled: !is_ready, onclick: sendCommand }, 'SEND'),
+        m("select#examples", {
+          disabled: !is_ready,
+          onchange: (e) => { $("#command").value = e.target.value; window.setTimeout(sendCommand, 10); }
+        }, [
+          m("option", { value: '' }, "-- EXAMPLE --"),
+          ...examples.map((ex, index) => m("option", { value: ex }, ex)),
+        ])
+      ]),
+      m("div#misc", [
+        m("div", `- sf_state: ${sf_state}`),
+        m("div", { style: 'display: flex;' }, [
+          m("span", { style: 'margin-right: 10px;' }, `- tail_output: ${Number(tail_output)}`),
+          m("span", [
+            m("input", { style: 'vertical-align: middle;', type: 'checkbox', checked: tail_output, onchange: (e) => { tail_output = e.target.checked; scrollOutput(); } }),
+          ])
+        ]),
+      ]),
+      m("div#output", m("pre", output))
+    ]);
+  };
+
+  return { oninit, view };
+};
+
+m.mount(document.body, App);
+
+</script>
+</body>
