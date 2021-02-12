@@ -119,11 +119,22 @@ namespace Eval::NNUE {
 
     // Read network parameters
     bool ReadParameters(std::istream& stream) {
+      #ifdef __EMSCRIPTEN__
+        // NOTE:
+        // This is the bottle neck of startup (`NNUE::init` takes 1 second for the original code)
+        // Since WASM assumes little endian by its spec, we can just read them all at once.
+        constexpr int n = kHalfDimensions;
+        constexpr int m = kInputDimensions;
+        stream.read(reinterpret_cast<char*>(biases_), n * sizeof(biases_[0]));
+        stream.read(reinterpret_cast<char*>(weights_), n * m * sizeof(weights_[0]));
 
-      for (std::size_t i = 0; i < kHalfDimensions; ++i)
-        biases_[i] = read_little_endian<BiasType>(stream);
-      for (std::size_t i = 0; i < kHalfDimensions * kInputDimensions; ++i)
-        weights_[i] = read_little_endian<WeightType>(stream);
+      #else
+        for (std::size_t i = 0; i < kHalfDimensions; ++i)
+          biases_[i] = read_little_endian<BiasType>(stream);
+        for (std::size_t i = 0; i < kHalfDimensions * kInputDimensions; ++i)
+          weights_[i] = read_little_endian<WeightType>(stream);
+      #endif
+
       return !stream.fail();
     }
 
