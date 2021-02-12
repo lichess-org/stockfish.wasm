@@ -45,6 +45,7 @@ VPATH = nnue:nnue/features
 # optimize = yes/no   --- (-O3/-fast etc.) --- Enable/Disable optimizations
 # wasm_simd = yes/no
 # wasm_simd_post_mvp = yes/no
+# minify_js = yes/no
 #
 # Note that Makefile is space sensitive, so when adding new architectures
 # or modifying existing flags, you have to make sure there are no extra spaces
@@ -58,6 +59,7 @@ popcnt = yes
 bits = 64
 wasm_simd = no
 wasm_simd_post_mvp = no
+minify_js = yes
 
 COMP = emscripten
 EXE = stockfish.js
@@ -79,6 +81,11 @@ ifeq ($(COMP),emscripten)
 	EMFLAGS += -s ALLOW_MEMORY_GROWTH=1 -s INITIAL_MEMORY=67108864 -s MAXIMUM_MEMORY=2147483648
 	EMFLAGS += -s FILESYSTEM=0 --closure 1
 	EMFLAGS += -s STRICT=1 -s ASSERTIONS=0
+	ifeq ($(minify_js),yes)
+		EMFLAGS += --closure 1
+	else
+		EMFLAGS += --closure 0 -g1
+	endif
 	CXXFLAGS += $(EMFLAGS)
 endif
 
