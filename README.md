@@ -7,6 +7,12 @@ on https://lichess.org/analysis.
 
 [![npm version](https://badge.fury.io/js/stockfish.wasm.svg)](https://badge.fury.io/js/stockfish.wasm)
 [![CI](https://github.com/niklasf/stockfish.wasm/workflows/CI/badge.svg)](https://github.com/niklasf/stockfish.wasm/actions?query=workflow%3ACI)
+[![Passively maintained](https://img.shields.io/badge/passively%20maintained-x-yellow.svg)](#superceded)
+
+Superceded
+----------
+
+See https://github.com/hi-ogawa/Stockfish for a WebAssembly port with NNUE support.
 
 Requirements
 ------------
