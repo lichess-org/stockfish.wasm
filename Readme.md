@@ -109,7 +109,7 @@ function wasmThreadsSupported() {
 
 ## Building
 
-Assuming [em++](https://github.com/kripken/emscripten) (`^2.0.10`) is available:
+Assuming [em++](https://github.com/kripken/emscripten) (`^2.0.13`) is available:
 
 ```
 npm run-script prepare
