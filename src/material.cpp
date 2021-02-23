@@ -1,6 +1,8 @@
 /*
   Stockfish, a UCI chess playing engine derived from Glaurung 2.1
-  Copyright (C) 2004-2020 The Stockfish developers (see AUTHORS file)
+  Copyright (C) 2004-2008 Tord Romstad (Glaurung author)
+  Copyright (C) 2008-2015 Marco Costalba, Joona Kiiski, Tord Romstad
+  Copyright (C) 2015-2020 Marco Costalba, Joona Kiiski, Gary Linscott, Tord Romstad
 
   Stockfish is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -25,33 +27,30 @@
 using namespace std;
 
 namespace {
-  #define S(mg, eg) make_score(mg, eg)
 
   // Polynomial material imbalance parameters
 
-  constexpr Score QuadraticOurs[][PIECE_TYPE_NB] = {
+  constexpr int QuadraticOurs[][PIECE_TYPE_NB] = {
     //            OUR PIECES
     // pair pawn knight bishop rook queen
-    {S(1419, 1455)                                                                  }, // Bishop pair
-    {S( 101,   28), S( 37,  39)                                                     }, // Pawn
-    {S(  57,   64), S(249, 187), S(-49, -62)                                        }, // Knight      OUR PIECES
-    {S(   0,    0), S(118, 137), S( 10,  27), S(  0,   0)                           }, // Bishop
-    {S( -63,  -68), S( -5,   3), S(100,  81), S(132, 118), S(-246, -244)            }, // Rook
-    {S(-210, -211), S( 37,  14), S(147, 141), S(161, 105), S(-158, -174), S(-9,-31) }  // Queen
+    {1438                               }, // Bishop pair
+    {  40,   38                         }, // Pawn
+    {  32,  255, -62                    }, // Knight      OUR PIECES
+    {   0,  104,   4,    0              }, // Bishop
+    { -26,   -2,  47,   105,  -208      }, // Rook
+    {-189,   24, 117,   133,  -134, -6  }  // Queen
   };
 
-  constexpr Score QuadraticTheirs[][PIECE_TYPE_NB] = {
+  constexpr int QuadraticTheirs[][PIECE_TYPE_NB] = {
     //           THEIR PIECES
     // pair pawn knight bishop rook queen
-    {                                                                               }, // Bishop pair
-    {S(  33,  30)                                                                   }, // Pawn
-    {S(  46,  18), S(106,  84)                                                      }, // Knight      OUR PIECES
-    {S(  75,  35), S( 59,  44), S( 60,  15)                                         }, // Bishop
-    {S(  26,  35), S(  6,  22), S( 38,  39), S(-12,  -2)                            }, // Rook
-    {S(  97,  93), S(100, 163), S(-58, -91), S(112, 192), S(276, 225)               }  // Queen
+    {                                   }, // Bishop pair
+    {  36,                              }, // Pawn
+    {   9,   63,                        }, // Knight      OUR PIECES
+    {  59,   65,  42,                   }, // Bishop
+    {  46,   39,  24,   -24,            }, // Rook
+    {  97,  100, -42,   137,  268,      }  // Queen
   };
-
-  #undef S
 
   // Endgame evaluation and scaling functions are accessed directly and not through
   // the function maps because they correspond to more than one material hash key.
@@ -85,11 +84,11 @@ namespace {
   /// piece type for both colors.
 
   template<Color Us>
-  Score imbalance(const int pieceCount[][PIECE_TYPE_NB]) {
+  int imbalance(const int pieceCount[][PIECE_TYPE_NB]) {
 
     constexpr Color Them = ~Us;
 
-    Score bonus = SCORE_ZERO;
+    int bonus = 0;
 
     // Second-degree polynomial material imbalance, by Tord Romstad
     for (int pt1 = NO_PIECE_TYPE; pt1 <= QUEEN; ++pt1)
@@ -133,7 +132,7 @@ Entry* probe(const Position& pos) {
 
   Value npm_w = pos.non_pawn_material(WHITE);
   Value npm_b = pos.non_pawn_material(BLACK);
-  Value npm   = std::clamp(npm_w + npm_b, EndgameLimit, MidgameLimit);
+  Value npm   = Utility::clamp(npm_w + npm_b, EndgameLimit, MidgameLimit);
 
   // Map total non-pawn material into [PHASE_ENDGAME, PHASE_MIDGAME]
   e->gamePhase = Phase(((npm - EndgameLimit) * PHASE_MIDGAME) / (MidgameLimit - EndgameLimit));
@@ -216,7 +215,7 @@ Entry* probe(const Position& pos) {
   { pos.count<BISHOP>(BLACK) > 1, pos.count<PAWN>(BLACK), pos.count<KNIGHT>(BLACK),
     pos.count<BISHOP>(BLACK)    , pos.count<ROOK>(BLACK), pos.count<QUEEN >(BLACK) } };
 
-  e->score = (imbalance<WHITE>(pieceCount) - imbalance<BLACK>(pieceCount)) / 16;
+  e->value = int16_t((imbalance<WHITE>(pieceCount) - imbalance<BLACK>(pieceCount)) / 16);
   return e;
 }
 
