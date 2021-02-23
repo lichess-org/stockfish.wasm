@@ -1,6 +1,8 @@
 /*
   Stockfish, a UCI chess playing engine derived from Glaurung 2.1
-  Copyright (C) 2004-2021 The Stockfish developers (see AUTHORS file)
+  Copyright (C) 2004-2008 Tord Romstad (Glaurung author)
+  Copyright (C) 2008-2015 Marco Costalba, Joona Kiiski, Tord Romstad
+  Copyright (C) 2015-2020 Marco Costalba, Joona Kiiski, Gary Linscott, Tord Romstad
 
   Stockfish is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -25,13 +27,7 @@
 #include <string>
 
 #include "bitboard.h"
-#include "evaluate.h"
 #include "types.h"
-
-#ifdef USE_NNUE
-#include "nnue/nnue_accumulator.h"
-#endif
-
 
 /// StateInfo struct stores information needed to restore a Position object to
 /// its previous state when we retract a move. Whenever a move is made on the
@@ -56,8 +52,8 @@ struct StateInfo {
   Bitboard   checkersBB;
   Piece      capturedPiece;
 #ifdef ATOMIC
-  Bitboard blastByTypeBB[PIECE_TYPE_NB];
-  Bitboard blastByColorBB[COLOR_NB];
+  Bitboard   blastByTypeBB[PIECE_TYPE_NB];
+  Bitboard   blastByColorBB[COLOR_NB];
 #endif
 #ifdef CRAZYHOUSE
   bool       capturedpromoted;
@@ -67,12 +63,6 @@ struct StateInfo {
   Bitboard   pinners[COLOR_NB];
   Bitboard   checkSquares[PIECE_TYPE_NB];
   int        repetition;
-
-  // Used by NNUE
-#ifdef USE_NNUE
-  Eval::NNUE::Accumulator accumulator;
-  DirtyPiece dirtyPiece;
-#endif
 };
 
 
@@ -113,6 +103,7 @@ public:
   bool empty(Square s) const;
   template<PieceType Pt> int count(Color c) const;
   template<PieceType Pt> int count() const;
+  template<PieceType Pt> const Square* squares(Color c) const;
   template<PieceType Pt> Square square(Color c) const;
   bool is_on_semiopen_file(Color c, Square s) const;
 
@@ -133,8 +124,7 @@ public:
   Bitboard checkers() const;
   Bitboard blockers_for_king(Color c) const;
   Bitboard check_squares(PieceType pt) const;
-  Bitboard pinners(Color c) const;
-  bool is_discovered_check_on_king(Color c, Move m) const;
+  bool is_discovery_check_on_king(Color c, Move m) const;
 
   // Attacks to/from a given square
   Bitboard attackers_to(Square s) const;
@@ -312,9 +302,6 @@ public:
   bool pos_is_ok() const;
   void flip();
 
-  // Used by NNUE
-  StateInfo* state() const;
-
 private:
   // Initialization helpers (used while setting up a position)
   void set_castling_right(Color c, Square kfrom, Square rfrom);
@@ -333,10 +320,16 @@ private:
   Bitboard byTypeBB[PIECE_TYPE_NB];
   Bitboard byColorBB[COLOR_NB];
   int pieceCount[PIECE_NB];
+#ifdef HORDE
+  Square pieceList[PIECE_NB][SQUARE_NB];
+#else
+  Square pieceList[PIECE_NB][16];
+#endif
 #ifdef CRAZYHOUSE
   int pieceCountInHand[COLOR_NB][PIECE_TYPE_NB];
   Bitboard promotedPieces;
 #endif
+  int index[SQUARE_NB];
   int castlingRightsMask[SQUARE_NB];
 #if defined(GIVEAWAY) || defined(EXTINCTION) || defined(TWOKINGS)
   Square castlingKingSquare[COLOR_NB];
@@ -351,6 +344,7 @@ private:
   bool chess960;
   Variant var;
   Variant subvar;
+
 };
 
 namespace PSQT {
@@ -421,40 +415,32 @@ template<PieceType Pt> inline int Position::count() const {
   return count<Pt>(WHITE) + count<Pt>(BLACK);
 }
 
+template<PieceType Pt> inline const Square* Position::squares(Color c) const {
+  return pieceList[make_piece(c, Pt)];
+}
+
 template<PieceType Pt> inline Square Position::square(Color c) const {
-  switch (var)
-  {
-#ifdef ANTI
-  case ANTI_VARIANT: // There may be zero, one, or multiple kings
-      if (count<Pt>(c) == 0)
-          return SQ_NONE;
-      assert(count<Pt>(c) >= 1);
-  break;
-#endif
-#ifdef CRAZYHOUSE
-  case CRAZYHOUSE_VARIANT:
-#ifdef PLACEMENT
-      if (is_placement() && pieceCount[make_piece(c, Pt)] == 0)
-          return SQ_NONE;
-#endif
-      assert(pieceCount[make_piece(c, Pt)] == 1);
-  break;
-#endif
 #ifdef EXTINCTION
-  case EXTINCTION_VARIANT:
-      assert(count<Pt>(c) >= 1);
-  break; // return the first king's square
+  if (is_extinction() && Pt == KING && pieceCount[make_piece(c, Pt)] > 1)
+      return squares<Pt>(c)[0]; // return the first king's square
 #endif
 #ifdef TWOKINGS
-  case TWOKINGS_VARIANT:
-      if (Pt == KING && count<Pt>(c) > 1)
-          return royal_king(c);
-  [[fallthrough]];
+  if (is_two_kings() && Pt == KING && pieceCount[make_piece(c, Pt)] > 1)
+      return royal_king(c);
 #endif
-  default:
-  assert(count<Pt>(c) == 1);
-  }
-  return lsb(pieces(c, Pt));
+#ifdef PLACEMENT
+  if (is_placement() && pieceCount[make_piece(c, Pt)] == 0)
+      return SQ_NONE;
+#endif
+#ifdef ANTI
+  // There may be zero, one, or multiple kings
+  if (is_anti() && pieceCount[make_piece(c, Pt)] == 0)
+      return SQ_NONE;
+  assert(is_anti() ? pieceCount[make_piece(c, Pt)] >= 1 : pieceCount[make_piece(c, Pt)] == 1);
+#else
+  assert(pieceCount[make_piece(c, Pt)] == 1);
+#endif
+  return squares<Pt>(c)[0];
 }
 
 #ifdef THREECHECK
@@ -583,15 +569,11 @@ inline Bitboard Position::blockers_for_king(Color c) const {
   return st->blockersForKing[c];
 }
 
-inline Bitboard Position::pinners(Color c) const {
-  return st->pinners[c];
-}
-
 inline Bitboard Position::check_squares(PieceType pt) const {
   return st->checkSquares[pt];
 }
 
-inline bool Position::is_discovered_check_on_king(Color c, Move m) const {
+inline bool Position::is_discovery_check_on_king(Color c, Move m) const {
 #ifdef CRAZYHOUSE
   if (is_house() && type_of(m) == DROP)
       return false;
@@ -1182,7 +1164,7 @@ inline bool Position::capture_or_promotion(Move m) const {
 inline bool Position::capture(Move m) const {
   assert(is_ok(m));
   // Castling is encoded as "king captures rook"
-  return (!empty(to_sq(m)) && type_of(m) != CASTLING) || type_of(m) == EN_PASSANT;
+  return (!empty(to_sq(m)) && type_of(m) != CASTLING) || type_of(m) == ENPASSANT;
 }
 
 inline Piece Position::captured_piece() const {
@@ -1198,13 +1180,18 @@ inline void Position::put_piece(Piece pc, Square s) {
   board[s] = pc;
   byTypeBB[ALL_PIECES] |= byTypeBB[type_of(pc)] |= s;
   byColorBB[color_of(pc)] |= s;
-  pieceCount[pc]++;
+  index[s] = pieceCount[pc]++;
+  pieceList[pc][index[s]] = s;
   pieceCount[make_piece(color_of(pc), ALL_PIECES)]++;
   psq += PSQT::psq[var][pc][s];
 }
 
 inline void Position::remove_piece(Square s) {
 
+  // WARNING: This is not a reversible operation. If we remove a piece in
+  // do_move() and then replace it in undo_move() we will put it at the end of
+  // the list and not in its original place, it means index[] and pieceList[]
+  // are not invariant to a do_move() + undo_move() sequence.
   Piece pc = board[s];
   byTypeBB[ALL_PIECES] ^= s;
   byTypeBB[type_of(pc)] ^= s;
@@ -1214,13 +1201,18 @@ inline void Position::remove_piece(Square s) {
       board[s] = NO_PIECE;
 #endif
   /* board[s] = NO_PIECE;  Not needed, overwritten by the capturing one */
-  pieceCount[pc]--;
+  Square lastSquare = pieceList[pc][--pieceCount[pc]];
+  index[lastSquare] = index[s];
+  pieceList[pc][index[lastSquare]] = lastSquare;
+  pieceList[pc][pieceCount[pc]] = SQ_NONE;
   pieceCount[make_piece(color_of(pc), ALL_PIECES)]--;
   psq -= PSQT::psq[var][pc][s];
 }
 
 inline void Position::move_piece(Square from, Square to) {
 
+  // index[from] is not updated and becomes stale. This works as long as index[]
+  // is accessed just by known occupied squares.
   Piece pc = board[from];
   Bitboard fromTo = from | to;
   byTypeBB[ALL_PIECES] ^= fromTo;
@@ -1228,6 +1220,8 @@ inline void Position::move_piece(Square from, Square to) {
   byColorBB[color_of(pc)] ^= fromTo;
   board[from] = NO_PIECE;
   board[to] = pc;
+  index[to] = index[from];
+  pieceList[pc][index[to]] = to;
   psq += PSQT::psq[var][pc][to] - PSQT::psq[var][pc][from];
 }
 
@@ -1248,11 +1242,6 @@ inline void Position::undrop_piece(Piece pc, Square s) {
 
 inline void Position::do_move(Move m, StateInfo& newSt) {
   do_move(m, newSt, gives_check(m));
-}
-
-inline StateInfo* Position::state() const {
-
-  return st;
 }
 
 #endif // #ifndef POSITION_H_INCLUDED

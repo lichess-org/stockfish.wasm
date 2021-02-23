@@ -1,6 +1,8 @@
 /*
   Stockfish, a UCI chess playing engine derived from Glaurung 2.1
-  Copyright (C) 2004-2021 The Stockfish developers (see AUTHORS file)
+  Copyright (C) 2004-2008 Tord Romstad (Glaurung author)
+  Copyright (C) 2008-2015 Marco Costalba, Joona Kiiski, Tord Romstad
+  Copyright (C) 2015-2020 Marco Costalba, Joona Kiiski, Gary Linscott, Tord Romstad
 
   Stockfish is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -74,9 +76,9 @@ void TimeManagement::init(Variant var, Search::LimitsType& limits, Color us, int
   TimePoint slowMover       = TimePoint(Options["Slow Mover"]);
   TimePoint npmsec          = TimePoint(Options["nodestime"]);
 
-  // optScale is a percentage of available time to use for the current move.
-  // maxScale is a multiplier applied to optimumTime.
-  double optScale, maxScale;
+  // opt_scale is a percentage of available time to use for the current move.
+  // max_scale is a multiplier applied to optimumTime.
+  double opt_scale, max_scale;
 
   // If we have to play in 'nodes as time' mode, then convert from time
   // to nodes, and use resulting values in time management formulas.
@@ -111,22 +113,22 @@ void TimeManagement::init(Variant var, Search::LimitsType& limits, Color us, int
   // game time for the current move, so also cap to 20% of available game time.
   if (limits.movestogo == 0)
   {
-      optScale = std::min(0.0084 + std::pow(ply + 3.0, 0.5) * 0.0042,
+      opt_scale = std::min(0.008 + std::pow(ply + 3.0, 0.5) / 250.0,
                            0.2 * limits.time[us] / double(timeLeft));
-      maxScale = std::min(7.0, 4.0 + ply / 12.0);
+      max_scale = std::min(7.0, 4.0 + ply / 12.0);
   }
 
   // x moves in y seconds (+ z increment)
   else
   {
-      optScale = std::min((0.8 + ply / 128.0) / mtg,
+      opt_scale = std::min((0.8 + ply / 128.0) / mtg,
                             0.8 * limits.time[us] / double(timeLeft));
-      maxScale = std::min(6.3, 1.5 + 0.11 * mtg);
+      max_scale = std::min(6.3, 1.5 + 0.11 * mtg);
   }
 
   // Never use more than 80% of the available time for this move
-  optimumTime = TimePoint(optScale * timeLeft);
-  maximumTime = TimePoint(std::min(0.8 * limits.time[us] - moveOverhead, maxScale * optimumTime));
+  optimumTime = TimePoint(opt_scale * timeLeft);
+  maximumTime = TimePoint(std::min(0.8 * limits.time[us] - moveOverhead, max_scale * optimumTime));
 
   if (Options["Ponder"])
       optimumTime += optimumTime / 4;

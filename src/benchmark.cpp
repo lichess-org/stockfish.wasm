@@ -1,6 +1,8 @@
 /*
   Stockfish, a UCI chess playing engine derived from Glaurung 2.1
-  Copyright (C) 2004-2021 The Stockfish developers (see AUTHORS file)
+  Copyright (C) 2004-2008 Tord Romstad (Glaurung author)
+  Copyright (C) 2008-2015 Marco Costalba, Joona Kiiski, Tord Romstad
+  Copyright (C) 2015-2020 Marco Costalba, Joona Kiiski, Gary Linscott, Tord Romstad
 
   Stockfish is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -394,14 +396,50 @@ const vector<string> Defaults[SUBVARIANT_NB] = {
 #endif
 };
 
+const int defaultDepth[VARIANT_NB] = {
+  13,
+#ifdef ANTI
+  13,
+#endif
+#ifdef ATOMIC
+  13,
+#endif
+#ifdef CRAZYHOUSE
+  12,
+#endif
+#ifdef EXTINCTION
+  13,
+#endif
+#ifdef GRID
+  13,
+#endif
+#ifdef HORDE
+  13,
+#endif
+#ifdef KOTH
+  13,
+#endif
+#ifdef LOSERS
+  13,
+#endif
+#ifdef RACE
+  13,
+#endif
+#ifdef THREECHECK
+  13,
+#endif
+#ifdef TWOKINGS
+  13,
+#endif
+};
+
 } // namespace
 
 /// setup_bench() builds a list of UCI commands to be run by bench. There
 /// are five parameters: TT size in MB, number of search threads that
 /// should be used, the limit value spent for each position, a file name
-/// where to look for positions in FEN format, the type of the limit:
-/// depth, perft, nodes and movetime (in millisecs), and evaluation type
-/// mixed (default), classical, NNUE.
+/// where to look for positions in FEN format and the type of the limit:
+/// depth, perft, nodes and movetime (in millisecs).
 ///
 /// bench -> search default positions up to depth 13
 /// bench 64 1 15 -> search default positions up to depth 15 (TT = 64MB)
@@ -429,13 +467,14 @@ vector<string> setup_bench(const Position& current, istream& is) {
   Variant variant = varname == "all" ? CHESS_VARIANT : UCI::variant_from_name(varname);
 
   do {
+  Variant mainVariant = main_variant(variant);
+
   // Assign default values to missing arguments
   string ttSize    = (is >> token) ? token : "16";
   string threads   = (is >> token) ? token : "1";
-  string limit     = (is >> token) ? token : (variant == CHESS_VARIANT ? "13" : "12");
+  string limit     = (is >> token) ? token : to_string(defaultDepth[mainVariant]);
   string fenFile   = (is >> token) ? token : "default";
   string limitType = (is >> token) ? token : "depth";
-  string evalType  = (is >> token) ? token : "mixed";
 
   go = limitType == "eval" ? "eval" : "go " + limitType + " " + limit;
 
@@ -468,32 +507,15 @@ vector<string> setup_bench(const Position& current, istream& is) {
   list.emplace_back("ucinewgame");
   list.emplace_back("setoption name UCI_Variant value " + variants[variant]);
 
-  size_t posCounter = 0;
-
   for (const string& fen : fens)
       if (fen.find("setoption") != string::npos)
-      {
           list.emplace_back(fen);
-          if (fen.find("setoption name UCI_Variant") != string::npos)
-              posCounter = 0;
-      }
       else
       {
-#ifdef USE_NNUE
-          if (evalType == "classical" || (evalType == "mixed" && posCounter % 2 == 0))
-              list.emplace_back("setoption name Use NNUE value false");
-          else if (evalType == "NNUE" || (evalType == "mixed" && posCounter % 2 != 0))
-              list.emplace_back("setoption name Use NNUE value true");
-#endif
           list.emplace_back("position fen " + fen);
           list.emplace_back(go);
-          ++posCounter;
       }
   } while (varname == "all" && ++variant < SUBVARIANT_NB && (is.clear(), is.seekg(args)));
-
-#ifdef USE_NNUE
-  list.emplace_back("setoption name Use NNUE value true");
-#endif
 
   return list;
 }
