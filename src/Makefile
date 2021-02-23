@@ -244,7 +244,7 @@ ifeq ($(COMP),emscripten)
 	comp=clang
 	CXX=em++
 	EMFLAGS += -s MODULARIZE=1 -s EXPORT_NAME="StockfishMv" -s ENVIRONMENT=web,worker,node -s USE_PTHREADS=1 -s PTHREAD_POOL_SIZE=1
-	EMFLAGS += -s EXIT_RUNTIME=0 -s "EXTRA_EXPORTED_RUNTIME_METHODS=['ccall']" -s "INCOMING_MODULE_JS_API=['print', 'postRun', 'onAbort', 'onRuntimeInitialized']" --pre-js pre.js
+	EMFLAGS += -s EXIT_RUNTIME=0 -s "EXTRA_EXPORTED_RUNTIME_METHODS=['ccall']" --pre-js pre.js
 	EMFLAGS += -s ALLOW_MEMORY_GROWTH=1 -s INITIAL_MEMORY=67108864 -s MAXIMUM_MEMORY=1073741824
 	EMFLAGS += -s FILESYSTEM=0 --closure 1
 	EMFLAGS += -s STRICT=1 -s ASSERTIONS=0
