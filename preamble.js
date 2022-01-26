@@ -7,5 +7,5 @@
  * Compiled to JavaScript and WebAssembly by Niklas Fiekas
  * <niklas.fiekas@backscattering.de> using Emscripten.
  *
- * https://github.com/niklasf/stockfish.wasm
+ * https://github.com/lichess-org/stockfish.wasm
  */

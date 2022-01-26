@@ -5,7 +5,7 @@ WebAssembly port of the strong chess engine
 on https://lichess.org/analysis.
 
 [![npm version](https://badge.fury.io/js/stockfish.wasm.svg)](https://badge.fury.io/js/stockfish.wasm)
-[![CI](https://github.com/niklasf/stockfish.wasm/workflows/CI/badge.svg)](https://github.com/niklasf/stockfish.wasm/actions?query=workflow%3ACI)
+[![CI](https://github.com/lichess-org/stockfish.wasm/workflows/CI/badge.svg)](https://github.com/lichess-org/stockfish.wasm/actions?query=workflow%3ACI)
 [![Passively maintained](https://img.shields.io/badge/passively%20maintained-x-yellow.svg)](#superceded)
 
 ## Superceded by Stockfish with NNUE
@@ -48,7 +48,7 @@ Cross-Origin-Embedder-Policy: require-corp
 
 No support.
 
-See [stockfish.js](https://github.com/niklasf/stockfish.js) for a more
+See [stockfish.js](https://github.com/lichess-org/stockfish.js) for a more
 portable but single-threaded version.
 
 ### Feature detection
