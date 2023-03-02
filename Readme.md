@@ -29,6 +29,12 @@ And the following header on the included files:
 Cross-Origin-Embedder-Policy: require-corp
 ```
 
+If headers are not configured correctly on the top level response,
+`wasmThreadsSupported()` as defined below will return `false`. If headers are
+not configured correctly on the included files, something like
+`pthread sent an error! undefined:undefined: undefined` may be logged to the
+console.
+
 ### Chromium based (desktop only)
 
 - Since Chromium 79: Full support.
