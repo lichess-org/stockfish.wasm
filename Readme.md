@@ -11,7 +11,7 @@ on https://lichess.org/analysis.
 ## Superceded by Stockfish with NNUE
 
 This port is branched from [`SF_classical`](https://github.com/official-stockfish/Stockfish/releases/tag/SF_classical).
-See https://github.com/hi-ogawa/Stockfish for a WebAssembly port with NNUE support.
+See https://github.com/lichess-org/stockfish-web for cutting edge ports.
 
 ## Requirements
 
